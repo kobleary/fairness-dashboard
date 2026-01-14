@@ -1,0 +1,1370 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Fairness Dashboard</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      line-height: 1.6;
+      color: #333;
+      background: #f5f5f5;
+    }
+
+    #app {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 20px;
+      background: white;
+      min-height: 100vh;
+    }
+
+    header {
+      margin-bottom: 30px;
+      border-bottom: 2px solid #e0e0e0;
+      padding-bottom: 20px;
+    }
+
+    h1 {
+      font-size: 2rem;
+      margin-bottom: 20px;
+      color: #2c3e50;
+    }
+
+    #tabs {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .tab {
+      padding: 10px 20px;
+      background: #e0e0e0;
+      border: none;
+      cursor: pointer;
+      border-radius: 4px;
+      font-size: 0.95rem;
+      transition: background 0.2s;
+    }
+
+    .tab:hover {
+      background: #d0d0d0;
+    }
+
+    .tab.active {
+      background: #3498db;
+      color: white;
+    }
+
+    main {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    #controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 20px;
+      padding: 20px;
+      background: #f8f9fa;
+      border-radius: 8px;
+    }
+
+    #visualization {
+      min-height: 500px;
+      background: white;
+      width: 100%;
+      max-width: 100%;
+    }
+
+    #caption {
+      padding: 15px;
+      background: #f8f9fa;
+      border-left: 4px solid #3498db;
+      font-size: 0.9rem;
+      color: #555;
+    }
+
+    .control-group {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      min-width: 200px;
+    }
+
+    .control-group label {
+      font-weight: 600;
+      font-size: 0.9rem;
+      color: #2c3e50;
+      white-space: nowrap;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .info-icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 16px;
+      height: 16px;
+      background: #3498db;
+      color: white;
+      border-radius: 50%;
+      font-size: 0.75rem;
+      cursor: help;
+      position: relative;
+    }
+
+    .info-tooltip {
+      visibility: hidden;
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: #2c3e50;
+      color: white;
+      padding: 16px 18px;
+      border-radius: 8px;
+      font-size: 0.8rem;
+      font-weight: normal;
+      width: 600px;
+      max-width: calc(100vw - 40px);
+      max-height: calc(100vh - 40px);
+      overflow-y: auto;
+      z-index: 1001;
+      line-height: 1.4;
+      box-shadow: 0 8px 16px rgba(0,0,0,0.3);
+      box-sizing: border-box;
+    }
+
+    .info-icon:hover .info-tooltip {
+      visibility: visible;
+    }
+
+    .info-tooltip::before {
+      content: "×";
+      position: absolute;
+      top: 8px;
+      right: 12px;
+      font-size: 1.3rem;
+      font-weight: bold;
+      color: #fff;
+      opacity: 0.7;
+      line-height: 1;
+    }
+
+    .info-tooltip p {
+      margin: 0 0 6px 0;
+      word-wrap: break-word;
+      overflow-wrap: break-word;
+      white-space: normal;
+    }
+
+    .info-tooltip p:last-child {
+      margin-bottom: 0;
+    }
+
+    .info-tooltip strong {
+      word-wrap: break-word;
+      overflow-wrap: break-word;
+      white-space: normal;
+    }
+
+    @media (max-width: 768px) {
+      .info-tooltip {
+        width: calc(100vw - 30px);
+        padding: 14px;
+        font-size: 0.75rem;
+        line-height: 1.35;
+      }
+    }
+
+    select, input {
+      padding: 8px 12px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-size: 0.9rem;
+      background: white;
+    }
+
+    select:focus, input:focus {
+      outline: none;
+      border-color: #3498db;
+    }
+
+    .multiselect-container {
+      position: relative;
+    }
+
+    .multiselect-input {
+      width: 100%;
+    }
+
+    .multiselect-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+      margin-top: 8px;
+    }
+
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 4px 8px;
+      background: #3498db;
+      color: white;
+      border-radius: 12px;
+      font-size: 0.85rem;
+    }
+
+    .chip-remove {
+      cursor: pointer;
+      font-weight: bold;
+    }
+
+    .multiselect-dropdown {
+      position: absolute;
+      top: 100%;
+      left: 0;
+      right: 0;
+      max-height: 200px;
+      overflow-y: auto;
+      background: white;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      margin-top: 4px;
+      z-index: 1000;
+      display: none;
+    }
+
+    .multiselect-dropdown.show {
+      display: block;
+    }
+
+    .multiselect-option {
+      padding: 8px 12px;
+      cursor: pointer;
+    }
+
+    .multiselect-option:hover {
+      background: #f0f0f0;
+    }
+
+    .loading {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 300px;
+      font-size: 1.1rem;
+      color: #666;
+    }
+
+    .map-tooltip {
+      position: fixed;
+      pointer-events: none;
+      background: rgba(0, 0, 0, 0.8);
+      color: white;
+      padding: 10px;
+      border-radius: 4px;
+      font-size: 0.85rem;
+      line-height: 1.4;
+      max-width: 300px;
+      z-index: 1000;
+      display: none;
+      white-space: pre-line;
+    }
+
+    @media (max-width: 768px) {
+      #controls {
+        flex-direction: column;
+      }
+
+      .control-group {
+        min-width: auto;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <header>
+      <h1>Fairness Dashboard</h1>
+      <div id="tabs"></div>
+    </header>
+
+    <main>
+      <div id="controls"></div>
+      <div id="visualization"></div>
+      <div id="caption"></div>
+    </main>
+  </div>
+
+  <script type="module">
+    import * as Plot from 'https://cdn.jsdelivr.net/npm/@observablehq/plot@0.6.14/+esm';
+    import * as duckdb from 'https://cdn.jsdelivr.net/npm/@duckdb/duckdb-wasm@1.28.0/+esm';
+    import * as d3 from 'https://cdn.jsdelivr.net/npm/d3@7/+esm';
+
+    // DuckDB initialization
+    let db = null;
+    let conn = null;
+
+    async function initDB() {
+      const JSDELIVR_BUNDLES = duckdb.getJsDelivrBundles();
+      const bundle = await duckdb.selectBundle(JSDELIVR_BUNDLES);
+
+      const worker_url = URL.createObjectURL(
+        new Blob([`importScripts("${bundle.mainWorker}");`], { type: 'text/javascript' })
+      );
+
+      const worker = new Worker(worker_url);
+      const logger = new duckdb.ConsoleLogger();
+      db = new duckdb.AsyncDuckDB(logger, worker);
+      await db.instantiate(bundle.mainModule, bundle.pthreadWorker);
+      URL.revokeObjectURL(worker_url);
+
+      conn = await db.connect();
+
+      const response = await fetch('data/fairness.parquet');
+      if (!response.ok) {
+        throw new Error(`Failed to fetch parquet file: ${response.status} ${response.statusText}`);
+      }
+      const buffer = await response.arrayBuffer();
+      console.log(`Loaded ${buffer.byteLength} bytes from parquet file`);
+      await db.registerFileBuffer('fairness.parquet', new Uint8Array(buffer));
+
+      await conn.query(`
+        CREATE VIEW fairness AS
+        SELECT * FROM read_parquet('fairness.parquet')
+      `);
+
+      return conn;
+    }
+
+    async function query(sql) {
+      const result = await conn.query(sql);
+      return result.toArray();
+    }
+
+    async function getDistinctValues(column) {
+      const result = await query(`
+        SELECT DISTINCT ${column}
+        FROM fairness
+        WHERE ${column} IS NOT NULL
+        ORDER BY ${column}
+      `);
+      return result.map(row => row[column]);
+    }
+
+    async function getYearRange() {
+      const result = await query(`
+        SELECT MIN(year) as min_year, MAX(year) as max_year
+        FROM fairness
+      `);
+      return result[0];
+    }
+
+    // Constants
+    function getStandardCaption(referenceGroup) {
+      return `Values are differences relative to ${referenceGroup} (reference) where applicable; Representativeness is shown as levels.`;
+    }
+
+    // State abbreviation to full name mapping
+    const STATE_NAMES = {
+      'AL': 'Alabama', 'AK': 'Alaska', 'AZ': 'Arizona', 'AR': 'Arkansas', 'CA': 'California',
+      'CO': 'Colorado', 'CT': 'Connecticut', 'DE': 'Delaware', 'FL': 'Florida', 'GA': 'Georgia',
+      'HI': 'Hawaii', 'ID': 'Idaho', 'IL': 'Illinois', 'IN': 'Indiana', 'IA': 'Iowa',
+      'KS': 'Kansas', 'KY': 'Kentucky', 'LA': 'Louisiana', 'ME': 'Maine', 'MD': 'Maryland',
+      'MA': 'Massachusetts', 'MI': 'Michigan', 'MN': 'Minnesota', 'MS': 'Mississippi', 'MO': 'Missouri',
+      'MT': 'Montana', 'NE': 'Nebraska', 'NV': 'Nevada', 'NH': 'New Hampshire', 'NJ': 'New Jersey',
+      'NM': 'New Mexico', 'NY': 'New York', 'NC': 'North Carolina', 'ND': 'North Dakota', 'OH': 'Ohio',
+      'OK': 'Oklahoma', 'OR': 'Oregon', 'PA': 'Pennsylvania', 'RI': 'Rhode Island', 'SC': 'South Carolina',
+      'SD': 'South Dakota', 'TN': 'Tennessee', 'TX': 'Texas', 'UT': 'Utah', 'VT': 'Vermont',
+      'VA': 'Virginia', 'WA': 'Washington', 'WV': 'West Virginia', 'WI': 'Wisconsin', 'WY': 'Wyoming',
+      'DC': 'District of Columbia', 'U.S.': 'U.S.'
+    };
+
+    // Fairness measure hover messages
+    const FAIRNESS_MESSAGES = {
+      'Marginal Candidates': (state, race, value, referenceGroup) => {
+        const absValue = Math.abs(value).toFixed(2);
+        const comparison = value >= 0 ? 'higher' : 'lower';
+        return `In ${state}, default rates for ${race} borrowers at the margin--or borrowers who submit one application resulting in an approval and another resulting in a denial--were ${absValue} percentage points ${comparison} than default rates for ${referenceGroup} borrowers at the margin.`;
+      },
+      'Statistical Parity': (state, race, value, referenceGroup) => {
+        const absValue = Math.abs(value).toFixed(2);
+        const comparison = value >= 0 ? 'higher' : 'lower';
+        return `In ${state}, denial rates for ${race} applicants were ${absValue} percentage points ${comparison} than denial rates for ${referenceGroup} applicants.`;
+      },
+      'Predictive Parity': (state, race, value, referenceGroup) => {
+        const absValue = Math.abs(value).toFixed(2);
+        const comparison = value >= 0 ? 'higher' : 'lower';
+        return `In ${state}, default rates for ${race} borrowers were ${absValue} percentage points ${comparison} than default rates for ${referenceGroup} borrowers.`;
+      },
+      'Conditional Statistical Parity - Large': (state, race, value, referenceGroup) => {
+        const absValue = Math.abs(value).toFixed(2);
+        const comparison = value >= 0 ? 'higher' : 'lower';
+        return `In ${state}, denial rates for ${race} applicants were ${absValue} percentage points ${comparison} than denial rates for ${referenceGroup} applicants, conditional on a large set of features (indicator for whether a coapplicant is present, loan purpose, the outcome of the automated underwriting system, applicant income, loan amount, credit score, debt-to-income ratio, and loan-to-value ratio).`;
+      },
+      'Conditional Statistical Parity - Small': (state, race, value, referenceGroup) => {
+        const absValue = Math.abs(value).toFixed(2);
+        const comparison = value >= 0 ? 'higher' : 'lower';
+        return `In ${state}, denial rates for ${race} applicants were ${absValue} percentage points ${comparison} than denial rates for ${referenceGroup} applicants, conditional on a small set of features (applicant income, loan amount, loan purpose, and an indicator for whether a coapplicant is present).`;
+      },
+      'Equality of Opportunity': (state, race, value, referenceGroup) => {
+        const absValue = Math.abs(value).toFixed(2);
+        const comparison = value >= 0 ? 'higher' : 'lower';
+        return `In ${state}, denial rates for creditworthy ${race} applicants were ${absValue} percentage points ${comparison} than denial rates for creditworthy ${referenceGroup} applicants.`;
+      },
+      'Equality of Goodwill': (state, race, value, referenceGroup) => {
+        const absValue = Math.abs(value).toFixed(2);
+        const comparison = value >= 0 ? 'higher' : 'lower';
+        return `In ${state}, denial rates for non-creditworthy ${race} applicants were ${absValue} percentage points ${comparison} than denial rates for non-creditworthy ${referenceGroup} applicants.`;
+      },
+      'Representativeness': (state, race, value, referenceGroup) => {
+        const absValue = Math.abs(value).toFixed(2);
+        const comparison = value >= 0 ? 'higher' : 'lower';
+        return `In ${state}, the fraction of creditworthy ${race} applicants was ${absValue} percentage points ${comparison} than the fraction of approved ${race} applicants.`;
+      }
+    };
+
+    // Detailed fairness measure definitions
+    const FAIRNESS_DEFINITIONS = {
+      'Statistical Parity': 'Difference in denial rates. Statistical parity is satisfied if applicants from different groups are denied at the same rate. A violation of this measure is defined as the difference in denial rate between a target demographic group and the reference demographic group. For example, a statistical parity value of 10 for Black applicants means Black applicants are 10 percentage points more likely to be denied on their loan application than White applicants. Negative values indicate a lower denial rate relative to the reference group.',
+      'Predictive Parity': 'Difference in default rates. Predictive parity is satisfied if borrowers from different groups default at the same rate. A violation of this measure is defined as the difference in default rate between a target demographic group and the reference demographic group. For example, a predictive parity value of 10 for Black borrowers means that Black borrowers are 10 percentage points more likely to default than White borrowers. Negative values indicate a lower default rate relative to the reference group.',
+      'Marginal Candidates': 'Difference in lending standards. The marginal outcome test is satisfied if borrowers at the margin default at the same rate across groups. Marginal applicants are defined as those who submit one application resulting in an approval and another resulting in a denial. A violation of this measure is defined as the difference in default rate between marginal applicants in the reference demographic group and marginal applicants in a target demographic group. For example, a value of 10 for Black borrowers means that Black marginal borrowers are 10 percentage points less likely to default than White marginal borrowers. This is because higher default rates at the margin imply lower lending standards among this group, relative to the reference group.',
+      'Equality of Opportunity': 'Difference in denial rates for creditworthy borrowers; captures a notion of unfair denials. Equality of opportunity is satisfied if creditworthy borrowers are denied at the same rate across groups. A violation of this measure is defined as the difference in denial probability between creditworthy applicants in a target demographic group and creditworthy applicants in the reference demographic group. We define creditworthy applicants as those that did not default on their loan. To estimate this measure, we use the set of applicants who apply multiple times, originate one loan, and do not default. For example, a value of 10 for Black borrowers means that Black creditworthy borrowers are 10 percentage points more likely to be denied on their loan applications than White creditworthy borrowers.',
+      'Equality of Goodwill': 'Difference in denial rates for non-creditworthy borrowers, captures a notion of unfair approvals. Equality of goodwill is satisfied if non-creditworthy borrowers are denied at the same rate across groups. A violation of this measure is defined as the difference in denial probability between non-creditworthy applicants in a target demographic group and non-creditworthy applicants in the reference demographic group. We define non-creditworthy borrowers as those that defaulted on their loan. To estimate this measure, we use the set of applicants who apply multiple times, originate one loan, and later default. For example, a value of 10 for Black borrowers means that Black non-creditworthy borrowers are 10 percentage points more likely to be denied on their loan applications than White non-creditworthy borrowers.',
+      'Conditional Statistical Parity - Small': 'Conditional difference in denial rates. Conditional statistical parity is satisfied if applicants from different groups, conditional on the same attributes, are denied at the same rate. A violation of this measure is defined as the difference in denial rates between a target and the reference demographic group among those with the same attributes. For example, a value of 10 for Black applicants means that Black applicants are 10 percentage points more likely to be denied on their loan application than White applicants with the same set of attributes (e.g., credit score or loan amount). This "Small model" version is a linear model and includes the conditioning variables: applicant income, loan amount, loan purpose, and an indicator for whether a coapplicant is present.',
+      'Conditional Statistical Parity - Large': 'Conditional difference in denial rates. Conditional statistical parity is satisfied if applicants from different groups, conditional on the same attributes, are denied at the same rate. A violation of this measure is defined as the difference in denial rates between a target and the reference demographic group among those with the same attributes. For example, a value of 10 for Black applicants means that Black applicants are 10 percentage points more likely to be denied on their loan application than White applicants with the same set of attributes (e.g., credit score or loan amount). This "Large model" version includes an indicator for whether a coapplicant is present, loan purpose, the outcome of the automated underwriting system, and binned variables: applicant income, loan amount, credit score, debt-to-income ratio, and loan-to-value ratio.',
+      'Representativeness': 'Amount of under-representation among those approved; corresponds to the idea that approved applicants should be "representative" of qualified applicants. This measure is satisfied if the proportion of approved applicants from a group is equal to the proportion of qualified applicants from that group. We define qualified applicants as those who have low estimated default risk. A violation of this measure is the difference in the proportion of qualified applicants from a target demographic group and the proportion of approved applicants from the same demographic group. For example, a value of 10 for Black applicants means that there are 10 percentage points fewer Black approved applicants than Black qualified applicants. Thus, if representativeness is positive, the group is "under-represented."'
+    };
+
+    // Color scheme for fairness measures (time series/categories)
+    const MEASURE_COLORS = [
+      '#e60049', '#0bb4ff', '#50e991', '#e6d800', '#9b19f5',
+      '#ffa300', '#dc0ab4', '#b3d4ff', '#00bfa0'
+    ];
+
+    // Color scheme for map (diverging scale)
+    const MAP_COLORS = [
+      '#084D49', '#115653', '#1B605D', '#256A67', '#237877', '#1E8788', '#19969A',
+      '#2BA2A7', '#47AFB2', '#64BBBE', '#7EB7BD', '#96A5AF', '#AF92A2', '#BC7E93',
+      '#B46982', '#AC5371', '#A43E62', '#992957', '#8E144C', '#830042'
+    ];
+
+    // Color scheme for demographic groups (consistent mapping)
+    const DEMOGRAPHIC_GROUP_COLORS = {
+      'White': '#95A5A6',
+      'Black': '#E74C3C',
+      'Hispanic': '#3498DB',
+      'Asian': '#F39C12',
+      'Native American': '#9B59B6',
+      'Male': '#34495E',
+      'Female': '#E91E63',
+      'Two or More Minority Races': '#16A085',
+      'Other': '#95A5A6'
+    };
+
+    // Hex tile coordinates for US states (based on NPR hex tile map)
+    // Source: https://team.carto.com/u/andrew/tables/andrew.us_states_hexgrid/public/map
+    const HEX_COORDS = {
+      'AK': { col: 0, row: 0 },
+      'ME': { col: 11, row: 0 },
+      'VT': { col: 10, row: 1 },
+      'NH': { col: 11, row: 1 },
+      'WA': { col: 0, row: 2 },
+      'MT': { col: 2, row: 2 },
+      'ND': { col: 3, row: 2 },
+      'MN': { col: 4, row: 2 },
+      'WI': { col: 5, row: 2 },
+      'MI': { col: 7, row: 2 },
+      'NY': { col: 9, row: 2 },
+      'MA': { col: 10, row: 2 },
+      'RI': { col: 11, row: 2 },
+      'ID': { col: 1, row: 3 },
+      'WY': { col: 2, row: 3 },
+      'SD': { col: 3, row: 3 },
+      'IA': { col: 4, row: 3 },
+      'IL': { col: 5, row: 3 },
+      'IN': { col: 6, row: 3 },
+      'OH': { col: 7, row: 3 },
+      'PA': { col: 8, row: 3 },
+      'NJ': { col: 9, row: 3 },
+      'CT': { col: 10, row: 3 },
+      'DE': { col: 11, row: 3 },
+      'OR': { col: 0, row: 4 },
+      'NV': { col: 1, row: 4 },
+      'CO': { col: 3, row: 4 },
+      'NE': { col: 4, row: 4 },
+      'MO': { col: 5, row: 4 },
+      'KY': { col: 6, row: 4 },
+      'WV': { col: 7, row: 4 },
+      'MD': { col: 9, row: 4 },
+      'VA': { col: 8, row: 4 },
+      'CA': { col: 0, row: 5 },
+      'UT': { col: 2, row: 5 },
+      'AZ': { col: 2, row: 6 },
+      'NM': { col: 3, row: 6 },
+      'KS': { col: 4, row: 5 },
+      'AR': { col: 5, row: 5 },
+      'TN': { col: 6, row: 5 },
+      'NC': { col: 7, row: 5 },
+      'SC': { col: 8, row: 5 },
+      'OK': { col: 4, row: 6 },
+      'LA': { col: 5, row: 6 },
+      'MS': { col: 6, row: 6 },
+      'AL': { col: 7, row: 6 },
+      'GA': { col: 8, row: 6 },
+      'HI': { col: 0, row: 7 },
+      'TX': { col: 4, row: 7 },
+      'FL': { col: 9, row: 7 }
+    };
+
+    // App state
+    const appState = {
+      activeTab: 'panel1',
+      yearRange: { minYear: 2015, maxYear: 2020 },
+      panel1: {
+        state: 'U.S.',
+        demographic_group: 'Black',
+        measures: []
+      },
+      panel2: {
+        measure: '',
+        state: 'U.S.',
+        demographic_category: 'race'
+      },
+      panel3: {
+        year: 2020,
+        demographic_group: 'Black',
+        measure: ''
+      }
+    };
+
+    const metadata = {
+      states: [],
+      statesDisplayToDb: {},
+      statesDbToDisplay: {},
+      years: [],
+      fairness_measures: [],
+      demographic_categories: [],
+      demographic_categories_map: {},
+      demographic_groups_by_category: {},
+      all_demographic_groups: [],
+      minYear: 2015,
+      maxYear: 2020
+    };
+
+    const tabs = [
+      { id: 'panel1', label: 'Compare Fairness Measures' },
+      { id: 'panel2', label: 'Compare Demographics' },
+      { id: 'panel3', label: 'Compare States' }
+    ];
+
+    // Helper function to determine reference group
+    function getReferenceGroup(demographicGroup) {
+      const genderGroups = ['Female'];
+      return genderGroups.includes(demographicGroup) ? 'Male' : 'White';
+    }
+
+    // Component: Dropdown
+    function createDropdown(label, options, value, onChange, isStateDropdown = false) {
+      const container = document.createElement('div');
+      container.className = 'control-group';
+
+      const labelEl = document.createElement('label');
+      labelEl.textContent = label;
+      container.appendChild(labelEl);
+
+      const select = document.createElement('select');
+
+      // Sort options with U.S. at top for state dropdowns
+      let sortedOptions = [...options];
+      if (isStateDropdown) {
+        sortedOptions = sortedOptions.sort((a, b) => {
+          if (a === 'U.S.') return -1;
+          if (b === 'U.S.') return 1;
+          return a.localeCompare(b);
+        });
+      }
+
+      sortedOptions.forEach(opt => {
+        const option = document.createElement('option');
+        option.value = opt;
+        option.textContent = opt;
+        if (opt === value) option.selected = true;
+        select.appendChild(option);
+      });
+
+      select.addEventListener('change', (e) => onChange(e.target.value));
+      container.appendChild(select);
+
+      return container;
+    }
+
+    // Component: Multi-select
+    function createMultiSelect(label, options, selectedValues, onChange, showInfo = false) {
+      const container = document.createElement('div');
+      container.className = 'control-group';
+
+      const labelEl = document.createElement('label');
+      labelEl.textContent = label;
+
+      if (showInfo) {
+        const infoIcon = document.createElement('span');
+        infoIcon.className = 'info-icon';
+        infoIcon.textContent = 'i';
+
+        const tooltip = document.createElement('div');
+        tooltip.className = 'info-tooltip';
+        tooltip.innerHTML = `
+          <p><strong>All measures (except representativeness) are depicted as differences relative to a reference demographic group. For race/ethnicity, the reference group is White applicants or borrowers. For gender, the reference group is male applicants or borrowers.</strong></p>
+          <p><strong>Statistical parity:</strong> difference in denial rates</p>
+          <p><strong>Predictive parity:</strong> difference in default rates</p>
+          <p><strong>Conditional statistical parity:</strong> conditional difference in denial rates</p>
+          <p><strong>Representativeness:</strong> amount of under-representation among approved borrowers</p>
+          <p><strong>Equality of opportunity:</strong> difference in denial rates among creditworthy borrowers</p>
+          <p><strong>Equality of goodwill:</strong> difference in denial rates among non-creditworthy borrowers</p>
+          <p><strong>Marginal outcome test:</strong> differences in lending standards</p>
+        `;
+        infoIcon.appendChild(tooltip);
+        labelEl.appendChild(infoIcon);
+      }
+
+      container.appendChild(labelEl);
+
+      const multiselectContainer = document.createElement('div');
+      multiselectContainer.className = 'multiselect-container';
+
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.className = 'multiselect-input';
+      input.placeholder = 'Type to search...';
+      multiselectContainer.appendChild(input);
+
+      const chipsContainer = document.createElement('div');
+      chipsContainer.className = 'multiselect-chips';
+      multiselectContainer.appendChild(chipsContainer);
+
+      const dropdown = document.createElement('div');
+      dropdown.className = 'multiselect-dropdown';
+      multiselectContainer.appendChild(dropdown);
+
+      let selected = new Set(selectedValues);
+
+      const renderChips = () => {
+        chipsContainer.innerHTML = '';
+        selected.forEach(value => {
+          const chip = document.createElement('div');
+          chip.className = 'chip';
+          chip.innerHTML = `${value} <span class="chip-remove">&times;</span>`;
+          chip.querySelector('.chip-remove').addEventListener('click', () => {
+            selected.delete(value);
+            renderChips();
+            renderDropdown();
+            onChange(Array.from(selected));
+          });
+          chipsContainer.appendChild(chip);
+        });
+      };
+
+      const renderDropdown = (filter = '') => {
+        dropdown.innerHTML = '';
+        const filtered = options.filter(opt =>
+          opt.toLowerCase().includes(filter.toLowerCase()) && !selected.has(opt)
+        );
+
+        if (filtered.length === 0) {
+          dropdown.classList.remove('show');
+          return;
+        }
+
+        filtered.forEach(opt => {
+          const option = document.createElement('div');
+          option.className = 'multiselect-option';
+          option.textContent = opt;
+          option.addEventListener('click', () => {
+            selected.add(opt);
+            input.value = '';
+            renderChips();
+            renderDropdown();
+            onChange(Array.from(selected));
+          });
+          dropdown.appendChild(option);
+        });
+
+        dropdown.classList.add('show');
+      };
+
+      input.addEventListener('input', (e) => renderDropdown(e.target.value));
+      input.addEventListener('focus', () => renderDropdown(input.value));
+      input.addEventListener('blur', () => setTimeout(() => dropdown.classList.remove('show'), 200));
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'Backspace' && input.value === '' && selected.size > 0) {
+          const lastItem = Array.from(selected).pop();
+          selected.delete(lastItem);
+          renderChips();
+          renderDropdown();
+          onChange(Array.from(selected));
+        }
+      });
+
+      renderChips();
+      container.appendChild(multiselectContainer);
+
+      return container;
+    }
+
+    // Component: Tabs
+    function createTabs(tabs, activeTab, onTabChange) {
+      const container = document.createElement('div');
+      container.id = 'tabs';
+
+      tabs.forEach(tab => {
+        const button = document.createElement('button');
+        button.className = 'tab' + (tab.id === activeTab ? ' active' : '');
+        button.textContent = tab.label;
+        button.addEventListener('click', () => onTabChange(tab.id));
+        container.appendChild(button);
+      });
+
+      return container;
+    }
+
+    // Panel 1
+    async function renderPanel1(controlsEl, vizEl, captionEl) {
+      controlsEl.innerHTML = '';
+      vizEl.innerHTML = '';
+      captionEl.innerHTML = '';
+
+      // Filter out Representativeness from panel 1
+      const panel1Measures = metadata.fairness_measures.filter(m => m !== 'Representativeness');
+
+      const measuresControl = createMultiSelect('Select Fairness Measure(s)', panel1Measures, appState.panel1.measures, (values) => {
+        appState.panel1.measures = values;
+        render();
+      }, true);
+      controlsEl.appendChild(measuresControl);
+
+      const stateControl = createDropdown('Select a State', metadata.states, appState.panel1.state, (value) => {
+        appState.panel1.state = value;
+        render();
+      }, true);
+      controlsEl.appendChild(stateControl);
+
+      // Filter out White and Male from demographic group options
+      const filteredDemographicGroups = metadata.all_demographic_groups.filter(g => g !== 'White' && g !== 'Male');
+      const groupControl = createDropdown('Select a Demographic', filteredDemographicGroups, appState.panel1.demographic_group, (value) => {
+        appState.panel1.demographic_group = value;
+        render();
+      });
+      controlsEl.appendChild(groupControl);
+
+      if (appState.panel1.measures.length === 0) {
+        vizEl.innerHTML = '<div class="loading">Please select at least one fairness measure</div>';
+        return;
+      }
+
+      const measuresStr = appState.panel1.measures.map(m => `'${m}'`).join(',');
+      const dbState = metadata.statesDisplayToDb[appState.panel1.state] || appState.panel1.state;
+      const sql = `
+        SELECT year, fairness_measure, value, coalesced_n
+        FROM fairness
+        WHERE state = '${dbState}'
+          AND demographic_group = '${appState.panel1.demographic_group}'
+          AND fairness_measure IN (${measuresStr})
+        ORDER BY fairness_measure, year
+      `;
+
+      const data = await query(sql);
+
+      if (data.length === 0) {
+        vizEl.innerHTML = '<div class="loading">No data for selection</div>';
+        return;
+      }
+
+      // Get selected measures in the order they appear in metadata
+      const selectedMeasuresInOrder = metadata.fairness_measures.filter(m => appState.panel1.measures.includes(m));
+
+      // Determine reference group
+      const referenceGroup = getReferenceGroup(appState.panel1.demographic_group);
+
+      // Augment data with tooltip messages
+      const dataWithTooltips = data.map(d => ({
+        ...d,
+        tooltipTitle: `${d.fairness_measure}, ${d.year}`,
+        tooltipMessage: FAIRNESS_MESSAGES[d.fairness_measure]
+          ? FAIRNESS_MESSAGES[d.fairness_measure](appState.panel1.state, appState.panel1.demographic_group, d.value, referenceGroup) + ` (Sample size: ${d.coalesced_n})`
+          : `(Sample size: ${d.coalesced_n})`
+      }));
+
+      const plot = Plot.plot({
+        marks: [
+          Plot.line(dataWithTooltips, { x: 'year', y: 'value', stroke: 'fairness_measure', strokeWidth: 2 }),
+          Plot.dot(dataWithTooltips, {
+            x: 'year',
+            y: 'value',
+            fill: 'fairness_measure',
+            r: 5,
+            tip: true,
+            title: d => `${d.tooltipTitle}\n\n${d.tooltipMessage}`
+          })
+        ],
+        color: {
+          legend: true,
+          domain: selectedMeasuresInOrder,
+          range: selectedMeasuresInOrder.map(measure => {
+            const originalIndex = metadata.fairness_measures.indexOf(measure);
+            return MEASURE_COLORS[originalIndex % MEASURE_COLORS.length];
+          }),
+          style: { textAlign: 'center' }
+        },
+        title: `Comparing Fairness Measures for ${appState.panel1.demographic_group} Applicants — ${appState.panel1.state}`,
+        subtitle: `Percentage point differences compared to ${referenceGroup} applicants`,
+        width: vizEl.clientWidth,
+        height: 500,
+        marginLeft: 60,
+        marginRight: 60,
+        marginTop: 50,
+        marginBottom: 60,
+        style: { fontSize: '14px' },
+        grid: true,
+        y: { label: null },
+        x: { label: null, tickFormat: 'd' }
+      });
+
+      vizEl.appendChild(plot);
+
+      // Build definitions HTML for selected measures
+      const definitionsHtml = appState.panel1.measures.map(measure => {
+        const definition = FAIRNESS_DEFINITIONS[measure] || 'Definition not available.';
+        return `<p style="margin-bottom: 12px;"><strong>${measure}:</strong> ${definition}</p>`;
+      }).join('');
+
+      captionEl.innerHTML = `
+        <div style="margin-bottom: 15px;">
+          <strong>About the selected fairness measures:</strong>
+        </div>
+        ${definitionsHtml}
+        <div style="margin-top: 15px; padding-top: 12px; border-top: 1px solid #ddd; font-size: 0.85rem; color: #666;">
+          Note: All measures are depicted as differences relative to ${referenceGroup} (reference group).
+        </div>
+      `;
+    }
+
+    // Panel 2
+    async function renderPanel2(controlsEl, vizEl, captionEl) {
+      controlsEl.innerHTML = '';
+      vizEl.innerHTML = '';
+      captionEl.innerHTML = '';
+
+      const measureControl = createDropdown('Select a Fairness Measure', metadata.fairness_measures, appState.panel2.measure, (value) => {
+        appState.panel2.measure = value;
+        render();
+      });
+      controlsEl.appendChild(measureControl);
+
+      const stateControl = createDropdown('Select a State', metadata.states, appState.panel2.state, (value) => {
+        appState.panel2.state = value;
+        render();
+      }, true);
+      controlsEl.appendChild(stateControl);
+
+      const categoryControl = createDropdown('Select a Category', metadata.demographic_categories, appState.panel2.demographic_category, (value) => {
+        appState.panel2.demographic_category = value;
+        render();
+      });
+      controlsEl.appendChild(categoryControl);
+
+      const dbCategory = metadata.demographic_categories_map[appState.panel2.demographic_category] || appState.panel2.demographic_category;
+      const dbState = metadata.statesDisplayToDb[appState.panel2.state] || appState.panel2.state;
+      const sql = `
+        SELECT year, demographic_group, value, coalesced_n
+        FROM fairness
+        WHERE fairness_measure = '${appState.panel2.measure}'
+          AND state = '${dbState}'
+          AND demographic_category = '${dbCategory}'
+        ORDER BY demographic_group, year
+      `;
+
+      const data = await query(sql);
+
+      if (data.length === 0) {
+        vizEl.innerHTML = '<div class="loading">No data for selection</div>';
+        return;
+      }
+
+      // Get unique demographic groups in the data and assign consistent colors
+      const demographicGroups = [...new Set(data.map(d => d.demographic_group))];
+      const groupColors = demographicGroups.map(group =>
+        DEMOGRAPHIC_GROUP_COLORS[group] || MEASURE_COLORS[demographicGroups.indexOf(group) % MEASURE_COLORS.length]
+      );
+
+      const plot = Plot.plot({
+        marks: [
+          Plot.line(data, { x: 'year', y: 'value', stroke: 'demographic_group', strokeWidth: 2 }),
+          Plot.dot(data, {
+            x: 'year',
+            y: 'value',
+            fill: 'demographic_group',
+            r: 5,
+            tip: true,
+            title: d => `${d.year}\n${d.demographic_group}\nValue: ${d.value != null ? d.value.toFixed(2) : 'N/A'} (Sample size: ${d.coalesced_n})`
+          })
+        ],
+        color: {
+          legend: true,
+          domain: demographicGroups,
+          range: groupColors
+        },
+        title: `${appState.panel2.measure} over time by ${appState.panel2.demographic_category} — ${appState.panel2.state}`,
+        width: vizEl.clientWidth,
+        height: 500,
+        marginLeft: 60,
+        marginRight: 60,
+        marginTop: 50,
+        marginBottom: 60,
+        style: { fontSize: '14px' },
+        grid: true,
+        y: { label: null },
+        x: { label: null, tickFormat: 'd' }
+      });
+
+      vizEl.appendChild(plot);
+
+      // Determine reference group for panel 2 based on demographic category
+      const panel2ReferenceGroup = appState.panel2.demographic_category.toLowerCase() === 'sex' ? 'Male' : 'White';
+
+      // Get definition for selected measure
+      const definition = FAIRNESS_DEFINITIONS[appState.panel2.measure] || 'Definition not available.';
+
+      captionEl.innerHTML = `
+        <div style="margin-bottom: 15px;">
+          <strong>About the selected fairness measure:</strong>
+        </div>
+        <p style="margin-bottom: 12px;"><strong>${appState.panel2.measure}:</strong> ${definition}</p>
+        <div style="margin-top: 15px; padding-top: 12px; border-top: 1px solid #ddd; font-size: 0.85rem; color: #666;">
+          Note: ${appState.panel2.measure === 'Representativeness' ? 'Representativeness is shown as levels.' : `All values are differences relative to ${panel2ReferenceGroup} (reference group).`}
+        </div>
+      `;
+    }
+
+    // Panel 3
+    async function renderPanel3(controlsEl, vizEl, captionEl) {
+      controlsEl.innerHTML = '';
+      vizEl.innerHTML = '';
+      captionEl.innerHTML = '';
+
+      const measureControl = createDropdown('Fairness Measure', metadata.fairness_measures, appState.panel3.measure, (value) => {
+        appState.panel3.measure = value;
+        render();
+      });
+      controlsEl.appendChild(measureControl);
+
+      const yearControl = createDropdown('Year', metadata.years, appState.panel3.year.toString(), (value) => {
+        appState.panel3.year = parseInt(value);
+        render();
+      });
+      controlsEl.appendChild(yearControl);
+
+      // Show all demographic groups (not filtered by category)
+      // Filter out White and Male for all measures except Representativeness
+      const filteredGroups = appState.panel3.measure === 'Representativeness'
+        ? metadata.all_demographic_groups
+        : metadata.all_demographic_groups.filter(g => g !== 'White' && g !== 'Male');
+      const groupControl = createDropdown('Demographic Group', filteredGroups, appState.panel3.demographic_group, (value) => {
+        appState.panel3.demographic_group = value;
+        render();
+      });
+      controlsEl.appendChild(groupControl);
+
+      const sql = `
+        SELECT state, value, coalesced_n
+        FROM fairness
+        WHERE fairness_measure = '${appState.panel3.measure}'
+          AND year = ${appState.panel3.year}
+          AND demographic_group = '${appState.panel3.demographic_group}'
+        ORDER BY state
+      `;
+
+      const data = await query(sql);
+
+      if (data.length === 0) {
+        vizEl.innerHTML = '<div class="loading">No data for selection</div>';
+        return;
+      }
+
+      // Determine reference group for panel 3
+      const panel3ReferenceGroup = getReferenceGroup(appState.panel3.demographic_group);
+
+      // Fetch the hex tile GeoJSON
+      const hexGeoJSON = await fetch('https://raw.githubusercontent.com/holtzy/The-Python-Graph-Gallery/master/static/data/us_states_hexgrid.geojson.json')
+        .then(response => response.json());
+
+      // Create a map of state values
+      const stateValueMap = {};
+      data.forEach(d => {
+        stateValueMap[d.state] = {
+          value: d.value,
+          coalesced_n: d.coalesced_n
+        };
+      });
+
+      // Calculate dynamic color scale based on data
+      const values = data.map(d => d.value).filter(v => v != null);
+      const minValue = Math.min(...values);
+      const maxValue = Math.max(...values);
+
+      // Determine if this is a difference measure or level measure
+      const isDifferenceMeasure = appState.panel3.measure !== 'Representativeness';
+
+      let colorScale;
+      if (isDifferenceMeasure) {
+        // For difference measures, center at 0 with symmetric scale
+        const maxAbs = Math.max(Math.abs(minValue), Math.abs(maxValue));
+        colorScale = d3.scaleLinear()
+          .domain([-maxAbs, 0, maxAbs])
+          .range(['#0066CC', '#E8E8E8', '#D81B60']);
+      } else {
+        // For level measures (Representativeness), use data range
+        if (minValue >= 0) {
+          colorScale = d3.scaleLinear()
+            .domain([0, maxValue])
+            .range(['#F8BBD0', '#D81B60']);
+        } else if (maxValue <= 0) {
+          colorScale = d3.scaleLinear()
+            .domain([minValue, 0])
+            .range(['#0066CC', '#BBDEFB']);
+        } else {
+          colorScale = d3.scaleLinear()
+            .domain([minValue, 0, maxValue])
+            .range(['#0066CC', '#E8E8E8', '#D81B60']);
+        }
+      }
+
+      // Create SVG with D3
+      const containerWidth = vizEl.clientWidth || 1400;
+      const width = containerWidth;
+      const height = 600;
+
+      const svg = d3.create('svg')
+        .attr('width', width)
+        .attr('height', height)
+        .attr('viewBox', [0, 0, width, height]);
+
+      // Create a projection for the hex map
+      const projection = d3.geoMercator()
+        .fitSize([width - 200, height - 100], hexGeoJSON);
+
+      const path = d3.geoPath().projection(projection);
+
+      // Create tooltip div
+      const tooltip = d3.select(vizEl)
+        .append('div')
+        .attr('class', 'map-tooltip');
+
+      // Draw hexagons
+      const hexagons = svg.append('g')
+        .selectAll('path')
+        .data(hexGeoJSON.features)
+        .join('path')
+        .attr('d', path)
+        .attr('fill', d => {
+          const stateAbbr = d.properties.iso3166_2;
+          const stateData = stateValueMap[stateAbbr];
+          return stateData ? colorScale(stateData.value) : '#ddd';
+        })
+        .attr('stroke', '#ffffff')
+        .attr('stroke-width', 2)
+        .style('cursor', 'pointer')
+        .on('mouseover', function(event, d) {
+          const stateAbbr = d.properties.iso3166_2;
+          const stateName = STATE_NAMES[stateAbbr] || d.properties.google_name || stateAbbr;
+          const stateData = stateValueMap[stateAbbr];
+
+          let tooltipText = `<strong>${stateName}</strong>`;
+          if (stateData) {
+            const tooltipMessage = FAIRNESS_MESSAGES[appState.panel3.measure]
+              ? FAIRNESS_MESSAGES[appState.panel3.measure](stateName, appState.panel3.demographic_group, stateData.value, panel3ReferenceGroup)
+              : '';
+            tooltipText += `\n\n${tooltipMessage}\n(Sample size: ${stateData.coalesced_n})`;
+          }
+
+          tooltip
+            .style('display', 'block')
+            .html(tooltipText.replace(/\n/g, '<br>'));
+
+          d3.select(this)
+            .attr('stroke', '#000000')
+            .attr('stroke-width', 3);
+        })
+        .on('mousemove', function(event) {
+          tooltip
+            .style('left', event.clientX + 'px')
+            .style('top', event.clientY + 'px');
+        })
+        .on('mouseout', function() {
+          tooltip.style('display', 'none');
+          d3.select(this)
+            .attr('stroke', '#ffffff')
+            .attr('stroke-width', 2);
+        });
+
+      // Add state labels
+      svg.append('g')
+        .selectAll('text')
+        .data(hexGeoJSON.features)
+        .join('text')
+        .attr('transform', d => {
+          const centroid = path.centroid(d);
+          return `translate(${centroid[0]}, ${centroid[1]})`;
+        })
+        .attr('text-anchor', 'middle')
+        .attr('dominant-baseline', 'central')
+        .attr('font-size', '11px')
+        .attr('font-weight', 'bold')
+        .attr('fill', '#000')
+        .text(d => d.properties.iso3166_2);
+
+      // Add color legend
+      const legendWidth = 20;
+      const legendHeight = 200;
+      const legendX = width - 120;
+      const legendY = 50;
+
+      const legendScale = d3.scaleLinear()
+        .domain(colorScale.domain())
+        .range([legendHeight, 0]);
+
+      const legendAxis = d3.axisRight(legendScale)
+        .ticks(5)
+        .tickFormat(d3.format('.2f'));
+
+      const defs = svg.append('defs');
+      const linearGradient = defs.append('linearGradient')
+        .attr('id', 'legend-gradient')
+        .attr('x1', '0%')
+        .attr('y1', '100%')
+        .attr('x2', '0%')
+        .attr('y2', '0%');
+
+      const numStops = 10;
+      for (let i = 0; i <= numStops; i++) {
+        const t = i / numStops;
+        const domain = colorScale.domain();
+        const value = domain[0] + t * (domain[domain.length - 1] - domain[0]);
+        linearGradient.append('stop')
+          .attr('offset', `${t * 100}%`)
+          .attr('stop-color', colorScale(value));
+      }
+
+      svg.append('rect')
+        .attr('x', legendX)
+        .attr('y', legendY)
+        .attr('width', legendWidth)
+        .attr('height', legendHeight)
+        .style('fill', 'url(#legend-gradient)');
+
+      svg.append('g')
+        .attr('transform', `translate(${legendX + legendWidth}, ${legendY})`)
+        .call(legendAxis);
+
+      svg.append('text')
+        .attr('x', legendX + legendWidth / 2)
+        .attr('y', legendY - 10)
+        .attr('text-anchor', 'middle')
+        .attr('font-size', '12px')
+        .text('Value');
+
+      // Add title
+      svg.append('text')
+        .attr('x', width / 2)
+        .attr('y', 30)
+        .attr('text-anchor', 'middle')
+        .attr('font-size', '16px')
+        .attr('font-weight', 'bold')
+        .text(`${appState.panel3.measure} by state — ${appState.panel3.demographic_group}, ${appState.panel3.year}`);
+
+      vizEl.appendChild(svg.node());
+
+      // Get definition for selected measure
+      const definition3 = FAIRNESS_DEFINITIONS[appState.panel3.measure] || 'Definition not available.';
+
+      captionEl.innerHTML = `
+        <div style="margin-bottom: 15px;">
+          <strong>About the selected fairness measure:</strong>
+        </div>
+        <p style="margin-bottom: 12px;"><strong>${appState.panel3.measure}:</strong> ${definition3}</p>
+        <div style="margin-top: 15px; padding-top: 12px; border-top: 1px solid #ddd; font-size: 0.85rem; color: #666;">
+          Note: ${appState.panel3.measure === 'Representativeness' ? 'Representativeness is shown as levels.' : `All values are differences relative to ${panel3ReferenceGroup} (reference group).`}
+        </div>
+      `;
+    }
+
+    // Render
+    async function render() {
+      const controlsEl = document.getElementById('controls');
+      const vizEl = document.getElementById('visualization');
+      const captionEl = document.getElementById('caption');
+
+      vizEl.innerHTML = '<div class="loading">Loading...</div>';
+
+      const tabsEl = document.getElementById('tabs');
+      const newTabs = createTabs(tabs, appState.activeTab, (tabId) => {
+        appState.activeTab = tabId;
+        render();
+      });
+      tabsEl.replaceWith(newTabs);
+
+      try {
+        if (appState.activeTab === 'panel1') {
+          await renderPanel1(controlsEl, vizEl, captionEl);
+        } else if (appState.activeTab === 'panel2') {
+          await renderPanel2(controlsEl, vizEl, captionEl);
+        } else if (appState.activeTab === 'panel3') {
+          await renderPanel3(controlsEl, vizEl, captionEl);
+        }
+      } catch (error) {
+        console.error('Render error:', error);
+        vizEl.innerHTML = `<div class="loading">Error: ${error.message}</div>`;
+      }
+    }
+
+    // Initialize
+    async function init() {
+      const app = document.getElementById('app');
+      app.innerHTML = '<div class="loading">Initializing database and loading data...</div>';
+
+      try {
+        await initDB();
+
+        const rawStates = await getDistinctValues('state');
+        // Create display names and mappings
+        metadata.statesDbToDisplay = {};
+        metadata.statesDisplayToDb = {};
+        rawStates.forEach(state => {
+          const displayName = STATE_NAMES[state] || state;
+          metadata.statesDbToDisplay[state] = displayName;
+          metadata.statesDisplayToDb[displayName] = state;
+        });
+        metadata.states = rawStates.map(state => metadata.statesDbToDisplay[state]);
+
+        metadata.years = (await getDistinctValues('year')).map(y => y.toString());
+        metadata.fairness_measures = await getDistinctValues('fairness_measure');
+
+        // Get demographic categories - store both display and DB values
+        const rawCategories = await getDistinctValues('demographic_category');
+        metadata.demographic_categories = rawCategories.map(cat => {
+          if (cat.toLowerCase() === 'race') return 'Race';
+          if (cat.toLowerCase() === 'sex') return 'Sex';
+          return cat;
+        });
+        metadata.demographic_categories_map = {};
+        rawCategories.forEach(cat => {
+          const displayName = cat.toLowerCase() === 'race' ? 'Race' :
+                             cat.toLowerCase() === 'sex' ? 'Sex' : cat;
+          metadata.demographic_categories_map[displayName] = cat;
+        });
+
+        const yearRange = await getYearRange();
+        metadata.minYear = yearRange.min_year;
+        metadata.maxYear = yearRange.max_year;
+
+        // Get all demographic groups (not filtered by category)
+        const allGroupsResult = await query(`
+          SELECT DISTINCT demographic_group
+          FROM fairness
+          WHERE demographic_group IS NOT NULL
+          ORDER BY demographic_group
+        `);
+        metadata.all_demographic_groups = allGroupsResult.map(r => r.demographic_group);
+
+        for (const rawCategory of rawCategories) {
+          const displayCategory = rawCategory.toLowerCase() === 'race' ? 'Race' :
+                                   rawCategory.toLowerCase() === 'sex' ? 'Sex' : rawCategory;
+          const result = await query(`
+            SELECT DISTINCT demographic_group
+            FROM fairness
+            WHERE demographic_category = '${rawCategory}'
+            ORDER BY demographic_group
+          `);
+          metadata.demographic_groups_by_category[displayCategory] = result.map(r => r.demographic_group);
+        }
+
+        appState.yearRange.minYear = metadata.minYear;
+        appState.yearRange.maxYear = metadata.maxYear;
+
+        // Default to U.S. if available
+        appState.panel1.state = metadata.states.includes('U.S.') ? 'U.S.' : (metadata.states[0] || 'California');
+        // Set default demographic group to first non-White, non-Male group
+        const filteredGroups = metadata.all_demographic_groups.filter(g => g !== 'White' && g !== 'Male');
+        appState.panel1.demographic_group = filteredGroups.includes('Black') ? 'Black' : (filteredGroups[0] || 'Black');
+
+        // Set default measures to Statistical Parity and Predictive Parity, excluding Representativeness
+        const defaultMeasures = ['Statistical Parity', 'Predictive Parity'];
+        const panel1Measures = metadata.fairness_measures.filter(m => m !== 'Representativeness');
+        appState.panel1.measures = defaultMeasures.filter(m => panel1Measures.includes(m));
+        if (appState.panel1.measures.length === 0) {
+          appState.panel1.measures = panel1Measures.slice(0, 2);
+        }
+
+        // Set default measure to Statistical Parity for panel2
+        appState.panel2.measure = metadata.fairness_measures.includes('Statistical Parity')
+          ? 'Statistical Parity'
+          : (metadata.fairness_measures[0] || '');
+        appState.panel2.state = metadata.states.includes('U.S.') ? 'U.S.' : (metadata.states[0] || 'California');
+        appState.panel2.demographic_category = metadata.demographic_categories[0] || 'race';
+
+        appState.panel3.year = metadata.maxYear;
+        // Set default measure to Statistical Parity for panel3
+        appState.panel3.measure = metadata.fairness_measures.includes('Statistical Parity')
+          ? 'Statistical Parity'
+          : (metadata.fairness_measures[0] || '');
+        // Set default demographic group based on measure (using all groups, not filtered by category)
+        const panel3FilteredGroups = appState.panel3.measure === 'Representativeness'
+          ? metadata.all_demographic_groups
+          : metadata.all_demographic_groups.filter(g => g !== 'White' && g !== 'Male');
+        appState.panel3.demographic_group = panel3FilteredGroups.includes('Black')
+          ? 'Black'
+          : (panel3FilteredGroups[0] || '');
+
+        app.innerHTML = `
+          <header>
+            <h1>Fairness Dashboard</h1>
+            <div id="tabs"></div>
+          </header>
+          <main>
+            <div id="controls"></div>
+            <div id="visualization"></div>
+            <div id="caption"></div>
+          </main>
+        `;
+
+        const tabsContainer = document.getElementById('tabs');
+        const tabsElement = createTabs(tabs, appState.activeTab, (tabId) => {
+          appState.activeTab = tabId;
+          render();
+        });
+        tabsContainer.replaceWith(tabsElement);
+
+        render();
+      } catch (error) {
+        console.error('Initialization error:', error);
+        app.innerHTML = `<div class="loading">Error: ${error.message}</div>`;
+      }
+    }
+
+    init();
+  </script>
+</body>
+</html>
