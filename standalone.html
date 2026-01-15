@@ -38,6 +38,23 @@
       color: #2c3e50;
     }
 
+    .description {
+      font-size: 1rem;
+      line-height: 1.6;
+      color: #555;
+      margin-bottom: 20px;
+      max-width: 900px;
+    }
+
+    .description a {
+      color: #3498db;
+      text-decoration: none;
+    }
+
+    .description a:hover {
+      text-decoration: underline;
+    }
+
     #tabs {
       display: flex;
       gap: 10px;
@@ -304,7 +321,12 @@
 <body>
   <div id="app">
     <header>
-      <h1>Fairness Dashboard</h1>
+      <h1>Mortgage Market Fairness</h1>
+      <div class="description">
+        Based on a <a href="https://www.philadelphiafed.org/-/media/FRBP/Assets/working-papers/2025/wp25-04.pdf" target="_blank" rel="noopener noreferrer">working paper</a> by Hadi Elzayn, Simon Freyaldenhoven, Ryan Kobler, and Minchul Shin.
+        <br><br>
+        How fair or unfair is the U.S. mortgage market? The answer to this question crucially depends on the definition of fairness. This visualization describes and explores six widely used definitions of fairness across time and allows users to compare by metric, by demographics, and by state.
+      </div>
       <div id="tabs"></div>
     </header>
 
@@ -403,7 +425,8 @@
     const FAIRNESS_MESSAGES = {
       'Marginal Candidates': (state, race, value, referenceGroup) => {
         const absValue = Math.abs(value).toFixed(2);
-        const comparison = value >= 0 ? 'higher' : 'lower';
+        // Negative values mean HIGHER default rates for marginal candidates (inverted)
+        const comparison = value >= 0 ? 'lower' : 'higher';
         return `In ${state}, default rates for ${race} borrowers at the margin--or borrowers who submit one application resulting in an approval and another resulting in a denial--were ${absValue} percentage points ${comparison} than default rates for ${referenceGroup} borrowers at the margin.`;
       },
       'Statistical Parity': (state, race, value, referenceGroup) => {
@@ -447,7 +470,7 @@
     const FAIRNESS_DEFINITIONS = {
       'Statistical Parity': 'Difference in denial rates. Statistical parity is satisfied if applicants from different groups are denied at the same rate. A violation of this measure is defined as the difference in denial rate between a target demographic group and the reference demographic group. For example, a statistical parity value of 10 for Black applicants means Black applicants are 10 percentage points more likely to be denied on their loan application than White applicants. Negative values indicate a lower denial rate relative to the reference group.',
       'Predictive Parity': 'Difference in default rates. Predictive parity is satisfied if borrowers from different groups default at the same rate. A violation of this measure is defined as the difference in default rate between a target demographic group and the reference demographic group. For example, a predictive parity value of 10 for Black borrowers means that Black borrowers are 10 percentage points more likely to default than White borrowers. Negative values indicate a lower default rate relative to the reference group.',
-      'Marginal Candidates': 'Difference in lending standards. The marginal outcome test is satisfied if borrowers at the margin default at the same rate across groups. Marginal applicants are defined as those who submit one application resulting in an approval and another resulting in a denial. A violation of this measure is defined as the difference in default rate between marginal applicants in the reference demographic group and marginal applicants in a target demographic group. For example, a value of 10 for Black borrowers means that Black marginal borrowers are 10 percentage points less likely to default than White marginal borrowers. This is because higher default rates at the margin imply lower lending standards among this group, relative to the reference group.',
+      'Marginal Candidates': 'Difference in lending standards. The marginal outcome test is satisfied if borrowers at the margin default at the same rate across groups. Marginal applicants are defined as those who submit one application resulting in an approval and another resulting in a denial. A violation of this measure is defined as the difference in default rate between marginal applicants in the reference demographic group and marginal applicants in a target demographic group. For example, a value of 10 for Black borrowers means that Black marginal borrowers are 10 percentage points less likely to default than White marginal borrowers. This is because lower default rates at the margin imply higher lending standards among this group, relative to the reference group.',
       'Equality of Opportunity': 'Difference in denial rates for creditworthy borrowers; captures a notion of unfair denials. Equality of opportunity is satisfied if creditworthy borrowers are denied at the same rate across groups. A violation of this measure is defined as the difference in denial probability between creditworthy applicants in a target demographic group and creditworthy applicants in the reference demographic group. We define creditworthy applicants as those that did not default on their loan. To estimate this measure, we use the set of applicants who apply multiple times, originate one loan, and do not default. For example, a value of 10 for Black borrowers means that Black creditworthy borrowers are 10 percentage points more likely to be denied on their loan applications than White creditworthy borrowers.',
       'Equality of Goodwill': 'Difference in denial rates for non-creditworthy borrowers, captures a notion of unfair approvals. Equality of goodwill is satisfied if non-creditworthy borrowers are denied at the same rate across groups. A violation of this measure is defined as the difference in denial probability between non-creditworthy applicants in a target demographic group and non-creditworthy applicants in the reference demographic group. We define non-creditworthy borrowers as those that defaulted on their loan. To estimate this measure, we use the set of applicants who apply multiple times, originate one loan, and later default. For example, a value of 10 for Black borrowers means that Black non-creditworthy borrowers are 10 percentage points more likely to be denied on their loan applications than White non-creditworthy borrowers.',
       'Conditional Statistical Parity - Small': 'Conditional difference in denial rates. Conditional statistical parity is satisfied if applicants from different groups, conditional on the same attributes, are denied at the same rate. A violation of this measure is defined as the difference in denial rates between a target and the reference demographic group among those with the same attributes. For example, a value of 10 for Black applicants means that Black applicants are 10 percentage points more likely to be denied on their loan application than White applicants with the same set of attributes (e.g., credit score or loan amount). This "Small model" version is a linear model and includes the conditioning variables: applicant income, loan amount, loan purpose, and an indicator for whether a coapplicant is present.',
@@ -825,6 +848,7 @@
         WHERE state = '${dbState}'
           AND demographic_group = '${appState.panel1.demographic_group}'
           AND fairness_measure IN (${measuresStr})
+          AND value IS NOT NULL
         ORDER BY fairness_measure, year
       `;
 
@@ -850,8 +874,8 @@
         ...d,
         tooltipTitle: `${d.fairness_measure}, ${d.year}`,
         tooltipMessage: FAIRNESS_MESSAGES[d.fairness_measure]
-          ? FAIRNESS_MESSAGES[d.fairness_measure](appState.panel1.state, appState.panel1.demographic_group, d.value, referenceGroup).replace(/\d+\.\d+/, d.value.toFixed(decimals)) + ` (Sample size: ${d.coalesced_n})`
-          : `(Sample size: ${d.coalesced_n})`
+          ? FAIRNESS_MESSAGES[d.fairness_measure](appState.panel1.state, appState.panel1.demographic_group, d.value, referenceGroup).replace(/\d+\.\d+/, Math.abs(d.value).toFixed(decimals)) + ` (Sample size: ${d.coalesced_n.toLocaleString()})`
+          : `(Sample size: ${d.coalesced_n.toLocaleString()})`
       }));
 
       const plot = Plot.plot({
@@ -946,6 +970,7 @@
         WHERE fairness_measure = '${appState.panel2.measure}'
           AND state = '${dbState}'
           AND demographic_category = '${dbCategory}'
+          AND value IS NOT NULL
         ORDER BY demographic_group, year
       `;
 
@@ -966,16 +991,28 @@
       const values2 = data.map(d => d.value);
       const decimals2 = getDynamicDecimals(values2);
 
+      // Augment data with tooltip messages for panel 2
+      const dataWithTooltips2 = data.map(d => {
+        const panel2ReferenceGroup = getReferenceGroup(d.demographic_group);
+        return {
+          ...d,
+          tooltipTitle: `${d.demographic_group}, ${d.year}`,
+          tooltipMessage: FAIRNESS_MESSAGES[appState.panel2.measure]
+            ? FAIRNESS_MESSAGES[appState.panel2.measure](appState.panel2.state, d.demographic_group, d.value, panel2ReferenceGroup).replace(/\d+\.\d+/, Math.abs(d.value).toFixed(decimals2)) + ` (Sample size: ${d.coalesced_n.toLocaleString()})`
+            : `(Sample size: ${d.coalesced_n.toLocaleString()})`
+        };
+      });
+
       const plot = Plot.plot({
         marks: [
-          Plot.line(data, { x: 'year', y: 'value', stroke: 'demographic_group', strokeWidth: 2 }),
-          Plot.dot(data, {
+          Plot.line(dataWithTooltips2, { x: 'year', y: 'value', stroke: 'demographic_group', strokeWidth: 2 }),
+          Plot.dot(dataWithTooltips2, {
             x: 'year',
             y: 'value',
             fill: 'demographic_group',
             r: 5,
             tip: true,
-            title: d => `${d.year}\n${d.demographic_group}\nValue: ${d.value != null ? d.value.toFixed(decimals2) : 'N/A'} (Sample size: ${d.coalesced_n})`
+            title: d => `${d.tooltipTitle}\n\n${d.tooltipMessage}`
           })
         ],
         color: {
@@ -1056,6 +1093,7 @@
         WHERE fairness_measure = '${appState.panel3.measure}'
           AND year = ${appState.panel3.year}
           AND demographic_group = '${appState.panel3.demographic_group}'
+          AND value IS NOT NULL
         ORDER BY state
       `;
 
@@ -1082,12 +1120,6 @@
         };
       });
 
-      // Debug: Log states with and without data
-      const statesWithData = Object.keys(stateValueMap);
-      const allStates = hexGeoJSON.features.map(f => f.properties.iso3166_2);
-      const statesWithoutData = allStates.filter(s => !stateValueMap.hasOwnProperty(s));
-      console.log('States with data:', statesWithData);
-      console.log('States without data:', statesWithoutData);
 
       // Calculate dynamic color scale based on data
       const values3 = data.map(d => d.value).filter(v => v != null);
@@ -1095,34 +1127,28 @@
       const maxValue = Math.max(...values3);
       const decimals3 = getDynamicDecimals(values3);
 
-      // Determine color scale based on data distribution
+      const midpoint = 0;
       let colorScale;
-      const hasPositive = maxValue > 0;
-      const hasNegative = minValue < 0;
 
-      if (hasPositive && hasNegative) {
-        // Both positive and negative: use 0 as midpoint, blue for negative, pink for positive
-        const maxAbs = Math.max(Math.abs(minValue), Math.abs(maxValue));
+      if (minValue < midpoint && maxValue > midpoint) {
+        // Data crosses zero: use symmetric scale with blue-grey-pink
+        // x = max(|min|, |max|), domain = [-x, x]
+        const x = Math.max(Math.abs(minValue), Math.abs(maxValue));
         colorScale = d3.scaleLinear()
-          .domain([-maxAbs, 0, maxAbs])
-          .range(['#0066CC', '#E8E8E8', '#D81B60']);
-      } else if (hasPositive && !hasNegative) {
-        // Only positive: use midpoint of data as midpoint, only pink scale
-        const midpoint = (minValue + maxValue) / 2;
+          .domain([-x, 0, x])
+          .range(['#008EFF', '#EBF0F4', '#961046']);
+      } else if (minValue >= midpoint) {
+        // All values >= 0: use grey to pink scale
+        const upperBound = maxValue === 0 ? 1 : maxValue;
         colorScale = d3.scaleLinear()
-          .domain([minValue, midpoint, maxValue])
-          .range(['#F8BBD0', '#EC407A', '#D81B60']);
-      } else if (hasNegative && !hasPositive) {
-        // Only negative: use midpoint of data as midpoint, only blue scale
-        const midpoint = (minValue + maxValue) / 2;
-        colorScale = d3.scaleLinear()
-          .domain([minValue, midpoint, maxValue])
-          .range(['#0066CC', '#42A5F5', '#BBDEFB']);
+          .domain([0, upperBound])
+          .range(['#EBF0F4', '#961046']);
       } else {
-        // All zeros or single value
+        // All values <= 0: use blue to grey scale
+        const lowerBound = minValue === 0 ? -1 : minValue;
         colorScale = d3.scaleLinear()
-          .domain([minValue, maxValue])
-          .range(['#E8E8E8', '#E8E8E8']);
+          .domain([lowerBound, 0])
+          .range(['#008EFF', '#EBF0F4']);
       }
 
       // Create SVG with D3
@@ -1146,7 +1172,6 @@
         .append('div')
         .attr('class', 'map-tooltip');
 
-      console.log('Tooltip created:', tooltip.node());
 
       // Draw hexagons
       const hexagons = svg.append('g')
@@ -1166,23 +1191,18 @@
           const stateAbbr = d.properties.iso3166_2;
           const stateName = STATE_NAMES[stateAbbr] || d.properties.google_name || stateAbbr;
           const stateData = stateValueMap[stateAbbr];
-          const hasData = stateData !== undefined && stateData !== null;
-
-          console.log('Mouseover:', stateAbbr, 'hasData:', hasData);
 
           let tooltipText = `<strong>${stateName}</strong>`;
-          if (hasData) {
+          if (stateData) {
             const tooltipMessage = FAIRNESS_MESSAGES[appState.panel3.measure]
               ? FAIRNESS_MESSAGES[appState.panel3.measure](stateName, appState.panel3.demographic_group, stateData.value, panel3ReferenceGroup)
               : '';
-            // Replace the value in the message with dynamically rounded version
-            const roundedMessage = tooltipMessage.replace(/(\d+\.\d+)/, stateData.value.toFixed(decimals3));
-            tooltipText += `<br><br>${roundedMessage}<br>(Sample size: ${stateData.coalesced_n})`;
+            // Replace the value in the message with dynamically rounded version (use absolute value)
+            const roundedMessage = tooltipMessage.replace(/(\d+\.\d+)/, Math.abs(stateData.value).toFixed(decimals3));
+            tooltipText += `<br><br>${roundedMessage}<br>(Sample size: ${stateData.coalesced_n.toLocaleString()})`;
           } else {
-            tooltipText += `<br><br>No data available`;
+            tooltipText += `<br>No data available`;
           }
-
-          console.log('Tooltip text:', tooltipText);
 
           tooltip
             .style('display', 'block')
@@ -1220,24 +1240,13 @@
         .attr('dominant-baseline', 'central')
         .attr('font-size', '12px')
         .attr('font-weight', 'bold')
-        .attr('pointer-events', 'none')
-        .text(d => d.properties.iso3166_2)
         .attr('fill', d => {
           const stateAbbr = d.properties.iso3166_2;
-          const hasData = stateValueMap.hasOwnProperty(stateAbbr);
-          return hasData ? '#000' : '#fff';
+          const stateData = stateValueMap[stateAbbr];
+          return stateData ? '#000000' : '#ffffff';
         })
-        .attr('stroke', d => {
-          const stateAbbr = d.properties.iso3166_2;
-          const hasData = stateValueMap.hasOwnProperty(stateAbbr);
-          return hasData ? 'none' : '#222';
-        })
-        .attr('stroke-width', d => {
-          const stateAbbr = d.properties.iso3166_2;
-          const hasData = stateValueMap.hasOwnProperty(stateAbbr);
-          return hasData ? 0 : 1;
-        })
-        .attr('paint-order', 'stroke');
+        .attr('pointer-events', 'none')
+        .text(d => d.properties.iso3166_2);
 
       // Add color legend
       const legendWidth = 20;
@@ -1245,8 +1254,10 @@
       const legendX = width - 120;
       const legendY = 50;
 
+      // For the legend axis, use only min and max (first and last elements of domain)
+      const colorDomain = colorScale.domain();
       const legendScale = d3.scaleLinear()
-        .domain(colorScale.domain())
+        .domain([colorDomain[0], colorDomain[colorDomain.length - 1]])
         .range([legendHeight, 0]);
 
       const legendAxis = d3.axisRight(legendScale)
@@ -1262,9 +1273,10 @@
         .attr('y2', '0%');
 
       const numStops = 10;
+      const domain = colorScale.domain();
       for (let i = 0; i <= numStops; i++) {
         const t = i / numStops;
-        const domain = colorScale.domain();
+        // Interpolate from min (bottom of gradient, offset 0%) to max (top of gradient, offset 100%)
         const value = domain[0] + t * (domain[domain.length - 1] - domain[0]);
         linearGradient.append('stop')
           .attr('offset', `${t * 100}%`)
@@ -1287,7 +1299,7 @@
         .attr('y', legendY - 10)
         .attr('text-anchor', 'middle')
         .attr('font-size', '12px')
-        .text('Value');
+        .text('Fairness violation');
 
       // Add title
       svg.append('text')
@@ -1449,7 +1461,12 @@
 
         app.innerHTML = `
           <header>
-            <h1>Fairness Dashboard</h1>
+            <h1>Mortgage Market Fairness Measures</h1>
+            <div class="description">
+              Based on a <a href="https://www.philadelphiafed.org/-/media/FRBP/Assets/working-papers/2025/wp25-04.pdf" target="_blank" rel="noopener noreferrer">working paper</a> by Hadi Elzayn, Simon Freyaldenhoven, Ryan Kobler, and Minchul Shin.
+              <br><br>
+              How fair or unfair is the U.S. mortgage market? The answer to this question crucially depends on the definition of fairness. This visualization describes and explores six widely used definitions of fairness across time and allows users to compare by metric, by demographics, and by state.
+            </div>
             <div id="tabs"></div>
           </header>
           <main>
