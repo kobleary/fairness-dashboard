@@ -293,6 +293,12 @@
         min-width: auto;
       }
     }
+
+    /* Center Observable Plot titles */
+    #visualization svg > text[aria-label="title"],
+    #visualization svg > text:first-of-type {
+      text-anchor: middle !important;
+    }
   </style>
 </head>
 <body>
@@ -577,6 +583,42 @@
       return genderGroups.includes(demographicGroup) ? 'Male' : 'White';
     }
 
+    // Helper function to determine data sources based on measures
+    function getDataSources(measures) {
+      const measuresArray = Array.isArray(measures) ? measures : [measures];
+      const needsICEMcDash = measuresArray.some(m =>
+        m === 'Predictive Parity' || m === 'Representativeness'
+      );
+      const needsHMDA = measuresArray.some(m =>
+        m !== 'Predictive Parity' && m !== 'Representativeness'
+      );
+
+      if (needsHMDA && needsICEMcDash) {
+        return 'Source: Authors calculations based on HMDA and ICE, McDash data';
+      } else if (needsICEMcDash) {
+        return 'Source: Authors calculations based on ICE, McDash data';
+      } else {
+        return 'Source: Authors calculations based on HMDA data';
+      }
+    }
+
+    // Helper function to determine dynamic decimal places
+    function getDynamicDecimals(values) {
+      if (!values || values.length === 0) return 2;
+      const nonNullValues = values.filter(v => v != null);
+      if (nonNullValues.length === 0) return 2;
+
+      const minVal = Math.min(...nonNullValues);
+      const maxVal = Math.max(...nonNullValues);
+      const range = Math.abs(maxVal - minVal);
+
+      if (range === 0) return 2;
+      if (range < 0.1) return 3;
+      if (range < 1) return 2;
+      if (range < 10) return 2;
+      return 1;
+    }
+
     // Component: Dropdown
     function createDropdown(label, options, value, onChange, isStateDropdown = false) {
       const container = document.createElement('div');
@@ -799,12 +841,16 @@
       // Determine reference group
       const referenceGroup = getReferenceGroup(appState.panel1.demographic_group);
 
+      // Determine dynamic decimal places
+      const values = data.map(d => d.value);
+      const decimals = getDynamicDecimals(values);
+
       // Augment data with tooltip messages
       const dataWithTooltips = data.map(d => ({
         ...d,
         tooltipTitle: `${d.fairness_measure}, ${d.year}`,
         tooltipMessage: FAIRNESS_MESSAGES[d.fairness_measure]
-          ? FAIRNESS_MESSAGES[d.fairness_measure](appState.panel1.state, appState.panel1.demographic_group, d.value, referenceGroup) + ` (Sample size: ${d.coalesced_n})`
+          ? FAIRNESS_MESSAGES[d.fairness_measure](appState.panel1.state, appState.panel1.demographic_group, d.value, referenceGroup).replace(/\d+\.\d+/, d.value.toFixed(decimals)) + ` (Sample size: ${d.coalesced_n})`
           : `(Sample size: ${d.coalesced_n})`
       }));
 
@@ -833,13 +879,13 @@
         subtitle: `Percentage point differences compared to ${referenceGroup} applicants`,
         width: vizEl.clientWidth,
         height: 500,
-        marginLeft: 60,
+        marginLeft: 80,
         marginRight: 60,
         marginTop: 50,
         marginBottom: 60,
-        style: { fontSize: '14px' },
+        style: { fontSize: '14px', overflow: 'visible' },
         grid: true,
-        y: { label: null },
+        y: { label: 'Fairness violation' },
         x: { label: null, tickFormat: 'd' }
       });
 
@@ -851,6 +897,9 @@
         return `<p style="margin-bottom: 12px;"><strong>${measure}:</strong> ${definition}</p>`;
       }).join('');
 
+      // Get data source
+      const dataSource = getDataSources(appState.panel1.measures);
+
       captionEl.innerHTML = `
         <div style="margin-bottom: 15px;">
           <strong>About the selected fairness measures:</strong>
@@ -858,6 +907,9 @@
         ${definitionsHtml}
         <div style="margin-top: 15px; padding-top: 12px; border-top: 1px solid #ddd; font-size: 0.85rem; color: #666;">
           Note: All measures are depicted as differences relative to ${referenceGroup} (reference group).
+        </div>
+        <div style="margin-top: 10px; font-size: 0.85rem; color: #666; font-style: italic;">
+          ${dataSource}
         </div>
       `;
     }
@@ -910,6 +962,10 @@
         DEMOGRAPHIC_GROUP_COLORS[group] || MEASURE_COLORS[demographicGroups.indexOf(group) % MEASURE_COLORS.length]
       );
 
+      // Determine dynamic decimal places
+      const values2 = data.map(d => d.value);
+      const decimals2 = getDynamicDecimals(values2);
+
       const plot = Plot.plot({
         marks: [
           Plot.line(data, { x: 'year', y: 'value', stroke: 'demographic_group', strokeWidth: 2 }),
@@ -919,7 +975,7 @@
             fill: 'demographic_group',
             r: 5,
             tip: true,
-            title: d => `${d.year}\n${d.demographic_group}\nValue: ${d.value != null ? d.value.toFixed(2) : 'N/A'} (Sample size: ${d.coalesced_n})`
+            title: d => `${d.year}\n${d.demographic_group}\nValue: ${d.value != null ? d.value.toFixed(decimals2) : 'N/A'} (Sample size: ${d.coalesced_n})`
           })
         ],
         color: {
@@ -930,13 +986,13 @@
         title: `${appState.panel2.measure} over time by ${appState.panel2.demographic_category} — ${appState.panel2.state}`,
         width: vizEl.clientWidth,
         height: 500,
-        marginLeft: 60,
+        marginLeft: 80,
         marginRight: 60,
         marginTop: 50,
         marginBottom: 60,
-        style: { fontSize: '14px' },
+        style: { fontSize: '14px', overflow: 'visible' },
         grid: true,
-        y: { label: null },
+        y: { label: 'Fairness violation' },
         x: { label: null, tickFormat: 'd' }
       });
 
@@ -948,6 +1004,9 @@
       // Get definition for selected measure
       const definition = FAIRNESS_DEFINITIONS[appState.panel2.measure] || 'Definition not available.';
 
+      // Get data source
+      const dataSource2 = getDataSources([appState.panel2.measure]);
+
       captionEl.innerHTML = `
         <div style="margin-bottom: 15px;">
           <strong>About the selected fairness measure:</strong>
@@ -955,6 +1014,9 @@
         <p style="margin-bottom: 12px;"><strong>${appState.panel2.measure}:</strong> ${definition}</p>
         <div style="margin-top: 15px; padding-top: 12px; border-top: 1px solid #ddd; font-size: 0.85rem; color: #666;">
           Note: ${appState.panel2.measure === 'Representativeness' ? 'Representativeness is shown as levels.' : `All values are differences relative to ${panel2ReferenceGroup} (reference group).`}
+        </div>
+        <div style="margin-top: 10px; font-size: 0.85rem; color: #666; font-style: italic;">
+          ${dataSource2}
         </div>
       `;
     }
@@ -1020,36 +1082,47 @@
         };
       });
 
+      // Debug: Log states with and without data
+      const statesWithData = Object.keys(stateValueMap);
+      const allStates = hexGeoJSON.features.map(f => f.properties.iso3166_2);
+      const statesWithoutData = allStates.filter(s => !stateValueMap.hasOwnProperty(s));
+      console.log('States with data:', statesWithData);
+      console.log('States without data:', statesWithoutData);
+
       // Calculate dynamic color scale based on data
-      const values = data.map(d => d.value).filter(v => v != null);
-      const minValue = Math.min(...values);
-      const maxValue = Math.max(...values);
+      const values3 = data.map(d => d.value).filter(v => v != null);
+      const minValue = Math.min(...values3);
+      const maxValue = Math.max(...values3);
+      const decimals3 = getDynamicDecimals(values3);
 
-      // Determine if this is a difference measure or level measure
-      const isDifferenceMeasure = appState.panel3.measure !== 'Representativeness';
-
+      // Determine color scale based on data distribution
       let colorScale;
-      if (isDifferenceMeasure) {
-        // For difference measures, center at 0 with symmetric scale
+      const hasPositive = maxValue > 0;
+      const hasNegative = minValue < 0;
+
+      if (hasPositive && hasNegative) {
+        // Both positive and negative: use 0 as midpoint, blue for negative, pink for positive
         const maxAbs = Math.max(Math.abs(minValue), Math.abs(maxValue));
         colorScale = d3.scaleLinear()
           .domain([-maxAbs, 0, maxAbs])
           .range(['#0066CC', '#E8E8E8', '#D81B60']);
+      } else if (hasPositive && !hasNegative) {
+        // Only positive: use midpoint of data as midpoint, only pink scale
+        const midpoint = (minValue + maxValue) / 2;
+        colorScale = d3.scaleLinear()
+          .domain([minValue, midpoint, maxValue])
+          .range(['#F8BBD0', '#EC407A', '#D81B60']);
+      } else if (hasNegative && !hasPositive) {
+        // Only negative: use midpoint of data as midpoint, only blue scale
+        const midpoint = (minValue + maxValue) / 2;
+        colorScale = d3.scaleLinear()
+          .domain([minValue, midpoint, maxValue])
+          .range(['#0066CC', '#42A5F5', '#BBDEFB']);
       } else {
-        // For level measures (Representativeness), use data range
-        if (minValue >= 0) {
-          colorScale = d3.scaleLinear()
-            .domain([0, maxValue])
-            .range(['#F8BBD0', '#D81B60']);
-        } else if (maxValue <= 0) {
-          colorScale = d3.scaleLinear()
-            .domain([minValue, 0])
-            .range(['#0066CC', '#BBDEFB']);
-        } else {
-          colorScale = d3.scaleLinear()
-            .domain([minValue, 0, maxValue])
-            .range(['#0066CC', '#E8E8E8', '#D81B60']);
-        }
+        // All zeros or single value
+        colorScale = d3.scaleLinear()
+          .domain([minValue, maxValue])
+          .range(['#E8E8E8', '#E8E8E8']);
       }
 
       // Create SVG with D3
@@ -1073,6 +1146,8 @@
         .append('div')
         .attr('class', 'map-tooltip');
 
+      console.log('Tooltip created:', tooltip.node());
+
       // Draw hexagons
       const hexagons = svg.append('g')
         .selectAll('path')
@@ -1082,7 +1157,7 @@
         .attr('fill', d => {
           const stateAbbr = d.properties.iso3166_2;
           const stateData = stateValueMap[stateAbbr];
-          return stateData ? colorScale(stateData.value) : '#ddd';
+          return stateData ? colorScale(stateData.value) : '#333';
         })
         .attr('stroke', '#ffffff')
         .attr('stroke-width', 2)
@@ -1091,18 +1166,29 @@
           const stateAbbr = d.properties.iso3166_2;
           const stateName = STATE_NAMES[stateAbbr] || d.properties.google_name || stateAbbr;
           const stateData = stateValueMap[stateAbbr];
+          const hasData = stateData !== undefined && stateData !== null;
+
+          console.log('Mouseover:', stateAbbr, 'hasData:', hasData);
 
           let tooltipText = `<strong>${stateName}</strong>`;
-          if (stateData) {
+          if (hasData) {
             const tooltipMessage = FAIRNESS_MESSAGES[appState.panel3.measure]
               ? FAIRNESS_MESSAGES[appState.panel3.measure](stateName, appState.panel3.demographic_group, stateData.value, panel3ReferenceGroup)
               : '';
-            tooltipText += `\n\n${tooltipMessage}\n(Sample size: ${stateData.coalesced_n})`;
+            // Replace the value in the message with dynamically rounded version
+            const roundedMessage = tooltipMessage.replace(/(\d+\.\d+)/, stateData.value.toFixed(decimals3));
+            tooltipText += `<br><br>${roundedMessage}<br>(Sample size: ${stateData.coalesced_n})`;
+          } else {
+            tooltipText += `<br><br>No data available`;
           }
+
+          console.log('Tooltip text:', tooltipText);
 
           tooltip
             .style('display', 'block')
-            .html(tooltipText.replace(/\n/g, '<br>'));
+            .style('left', (event.clientX + 15) + 'px')
+            .style('top', (event.clientY + 15) + 'px')
+            .html(tooltipText);
 
           d3.select(this)
             .attr('stroke', '#000000')
@@ -1110,8 +1196,8 @@
         })
         .on('mousemove', function(event) {
           tooltip
-            .style('left', event.clientX + 'px')
-            .style('top', event.clientY + 'px');
+            .style('left', (event.clientX + 15) + 'px')
+            .style('top', (event.clientY + 15) + 'px');
         })
         .on('mouseout', function() {
           tooltip.style('display', 'none');
@@ -1122,6 +1208,7 @@
 
       // Add state labels
       svg.append('g')
+        .attr('class', 'state-labels')
         .selectAll('text')
         .data(hexGeoJSON.features)
         .join('text')
@@ -1131,10 +1218,26 @@
         })
         .attr('text-anchor', 'middle')
         .attr('dominant-baseline', 'central')
-        .attr('font-size', '11px')
+        .attr('font-size', '12px')
         .attr('font-weight', 'bold')
-        .attr('fill', '#000')
-        .text(d => d.properties.iso3166_2);
+        .attr('pointer-events', 'none')
+        .text(d => d.properties.iso3166_2)
+        .attr('fill', d => {
+          const stateAbbr = d.properties.iso3166_2;
+          const hasData = stateValueMap.hasOwnProperty(stateAbbr);
+          return hasData ? '#000' : '#fff';
+        })
+        .attr('stroke', d => {
+          const stateAbbr = d.properties.iso3166_2;
+          const hasData = stateValueMap.hasOwnProperty(stateAbbr);
+          return hasData ? 'none' : '#222';
+        })
+        .attr('stroke-width', d => {
+          const stateAbbr = d.properties.iso3166_2;
+          const hasData = stateValueMap.hasOwnProperty(stateAbbr);
+          return hasData ? 0 : 1;
+        })
+        .attr('paint-order', 'stroke');
 
       // Add color legend
       const legendWidth = 20;
@@ -1200,6 +1303,9 @@
       // Get definition for selected measure
       const definition3 = FAIRNESS_DEFINITIONS[appState.panel3.measure] || 'Definition not available.';
 
+      // Get data source
+      const dataSource3 = getDataSources([appState.panel3.measure]);
+
       captionEl.innerHTML = `
         <div style="margin-bottom: 15px;">
           <strong>About the selected fairness measure:</strong>
@@ -1207,6 +1313,9 @@
         <p style="margin-bottom: 12px;"><strong>${appState.panel3.measure}:</strong> ${definition3}</p>
         <div style="margin-top: 15px; padding-top: 12px; border-top: 1px solid #ddd; font-size: 0.85rem; color: #666;">
           Note: ${appState.panel3.measure === 'Representativeness' ? 'Representativeness is shown as levels.' : `All values are differences relative to ${panel3ReferenceGroup} (reference group).`}
+        </div>
+        <div style="margin-top: 10px; font-size: 0.85rem; color: #666; font-style: italic;">
+          ${dataSource3}
         </div>
       `;
     }
