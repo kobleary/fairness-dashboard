@@ -1,4 +1,4 @@
-export function createDropdown(label, options, value, onChange) {
+export function createDropdown(label, options, value, onChange, isStateDropdown = false) {
   const container = document.createElement('div');
   container.className = 'control-group';
 
@@ -7,7 +7,18 @@ export function createDropdown(label, options, value, onChange) {
   container.appendChild(labelEl);
 
   const select = document.createElement('select');
-  options.forEach(opt => {
+
+  // Sort options with U.S. at top for state dropdowns
+  let sortedOptions = [...options];
+  if (isStateDropdown) {
+    sortedOptions = sortedOptions.sort((a, b) => {
+      if (a === 'U.S.') return -1;
+      if (b === 'U.S.') return 1;
+      return a.localeCompare(b);
+    });
+  }
+
+  sortedOptions.forEach(opt => {
     const option = document.createElement('option');
     option.value = opt;
     option.textContent = opt;
