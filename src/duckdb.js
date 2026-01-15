@@ -20,8 +20,15 @@ export async function initDB() {
   conn = await db.connect();
 
   // Register the parquet file
-  const response = await fetch('/data/fairness.parquet');
+  // Use import.meta.env.BASE_URL to handle GitHub Pages base path
+  const basePath = import.meta.env.BASE_URL || '/';
+  const dataPath = `${basePath}data/fairness.parquet`;
+  const response = await fetch(dataPath);
+  if (!response.ok) {
+    throw new Error(`Failed to fetch parquet file: ${response.status} ${response.statusText}`);
+  }
   const buffer = await response.arrayBuffer();
+  console.log(`Loaded ${buffer.byteLength} bytes from parquet file`);
   await db.registerFileBuffer('fairness.parquet', new Uint8Array(buffer));
 
   // Create a view
