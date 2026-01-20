@@ -1,9 +1,31 @@
-export function createMultiSelect(label, options, selectedValues, onChange) {
+export function createMultiSelect(label, options, selectedValues, onChange, showInfo = false) {
   const container = document.createElement('div');
   container.className = 'control-group';
 
   const labelEl = document.createElement('label');
   labelEl.textContent = label;
+
+  if (showInfo) {
+    const infoIcon = document.createElement('span');
+    infoIcon.className = 'info-icon';
+    infoIcon.textContent = 'i';
+
+    const tooltip = document.createElement('div');
+    tooltip.className = 'info-tooltip';
+    tooltip.innerHTML = `
+      <p><strong>All measures (except representativeness) are depicted as differences relative to a reference demographic group. For race/ethnicity, the reference group is White applicants or borrowers. For gender, the reference group is male applicants or borrowers.</strong></p>
+      <p><strong>Statistical parity:</strong> difference in denial rates</p>
+      <p><strong>Predictive parity:</strong> difference in default rates</p>
+      <p><strong>Conditional statistical parity:</strong> conditional difference in denial rates</p>
+      <p><strong>Representativeness:</strong> amount of under-representation among approved borrowers</p>
+      <p><strong>Equality of opportunity:</strong> difference in denial rates among creditworthy borrowers</p>
+      <p><strong>Equality of goodwill:</strong> difference in denial rates among non-creditworthy borrowers</p>
+      <p><strong>Marginal outcome test:</strong> differences in lending standards</p>
+    `;
+    infoIcon.appendChild(tooltip);
+    labelEl.appendChild(infoIcon);
+  }
+
   container.appendChild(labelEl);
 
   const multiselectContainer = document.createElement('div');

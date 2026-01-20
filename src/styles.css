@@ -31,6 +31,23 @@ h1 {
   color: #2c3e50;
 }
 
+.description {
+  font-size: 1rem;
+  line-height: 1.6;
+  color: #555;
+  margin-bottom: 20px;
+  max-width: 900px;
+}
+
+.description a {
+  color: #3498db;
+  text-decoration: none;
+}
+
+.description a:hover {
+  text-decoration: underline;
+}
+
 /* Tabs */
 #tabs {
   display: flex;
@@ -59,29 +76,28 @@ h1 {
 
 /* Main layout */
 main {
-  display: grid;
-  grid-template-columns: 300px 1fr;
-  gap: 30px;
-  grid-template-areas:
-    "controls viz"
-    "controls caption";
-}
-
-#controls {
-  grid-area: controls;
   display: flex;
   flex-direction: column;
   gap: 20px;
 }
 
+#controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+  padding: 20px;
+  background: #f8f9fa;
+  border-radius: 8px;
+}
+
 #visualization {
-  grid-area: viz;
   min-height: 500px;
   background: white;
+  width: 100%;
+  max-width: 100%;
 }
 
 #caption {
-  grid-area: caption;
   padding: 15px;
   background: #f8f9fa;
   border-left: 4px solid #3498db;
@@ -94,12 +110,95 @@ main {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  min-width: 200px;
 }
 
 .control-group label {
   font-weight: 600;
   font-size: 0.9rem;
   color: #2c3e50;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.info-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  background: #3498db;
+  color: white;
+  border-radius: 50%;
+  font-size: 0.75rem;
+  cursor: help;
+  position: relative;
+}
+
+.info-tooltip {
+  visibility: hidden;
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: #2c3e50;
+  color: white;
+  padding: 16px 18px;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  font-weight: normal;
+  width: 600px;
+  max-width: calc(100vw - 40px);
+  max-height: calc(100vh - 40px);
+  overflow-y: auto;
+  z-index: 1001;
+  line-height: 1.4;
+  box-shadow: 0 8px 16px rgba(0,0,0,0.3);
+  box-sizing: border-box;
+}
+
+.info-icon:hover .info-tooltip {
+  visibility: visible;
+}
+
+.info-tooltip::before {
+  content: "×";
+  position: absolute;
+  top: 8px;
+  right: 12px;
+  font-size: 1.3rem;
+  font-weight: bold;
+  color: #fff;
+  opacity: 0.7;
+  line-height: 1;
+}
+
+.info-tooltip p {
+  margin: 0 0 6px 0;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  white-space: normal;
+}
+
+.info-tooltip p:last-child {
+  margin-bottom: 0;
+}
+
+.info-tooltip strong {
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  white-space: normal;
+}
+
+@media (max-width: 768px) {
+  .info-tooltip {
+    width: calc(100vw - 30px);
+    padding: 14px;
+    font-size: 0.75rem;
+    line-height: 1.35;
+  }
 }
 
 select, input {
@@ -197,14 +296,30 @@ input[type="range"] {
   margin: 5px 0;
 }
 
+/* Map tooltip */
+.map-tooltip {
+  position: fixed;
+  pointer-events: none;
+  background: rgba(0, 0, 0, 0.8);
+  color: white;
+  padding: 10px;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  line-height: 1.4;
+  max-width: 300px;
+  z-index: 1000;
+  display: none;
+  white-space: pre-line;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
-  main {
-    grid-template-columns: 1fr;
-    grid-template-areas:
-      "controls"
-      "viz"
-      "caption";
+  #controls {
+    flex-direction: column;
+  }
+
+  .control-group {
+    min-width: auto;
   }
 }
 
@@ -216,4 +331,10 @@ input[type="range"] {
   min-height: 300px;
   font-size: 1.1rem;
   color: #666;
+}
+
+/* Center Observable Plot titles */
+#visualization svg > text[aria-label="title"],
+#visualization svg > text:first-of-type {
+  text-anchor: middle !important;
 }

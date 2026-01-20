@@ -1,9 +1,15 @@
 import * as Plot from '@observablehq/plot';
 import { query } from '../duckdb.js';
 import { createDropdown } from '../components/controls.js';
-import { createYearRangeSlider } from '../components/slider.js';
 import { createMultiSelect } from '../components/multiselect.js';
-import { STANDARD_CAPTION } from '../utils/constants.js';
+import {
+  getReferenceGroup,
+  getDataSources,
+  getDynamicDecimals,
+  FAIRNESS_MESSAGES,
+  FAIRNESS_DEFINITIONS,
+  MEASURE_COLORS
+} from '../utils/constants.js';
 
 export async function renderPanel1(controlsEl, vizEl, captionEl, state, metadata, updateState) {
   // Clear
@@ -11,36 +17,39 @@ export async function renderPanel1(controlsEl, vizEl, captionEl, state, metadata
   vizEl.innerHTML = '';
   captionEl.innerHTML = '';
 
+  // Filter out Representativeness from panel 1
+  const panel1Measures = metadata.fairness_measures.filter(m => m !== 'Representativeness');
+
   // Controls
+  const measuresControl = createMultiSelect(
+    'Select Fairness Measure(s)',
+    panel1Measures,
+    state.panel1.measures,
+    (values) => {
+      state.panel1.measures = values;
+      updateState();
+    },
+    true // Show info icon
+  );
+  controlsEl.appendChild(measuresControl);
+
   const stateControl = createDropdown(
-    'State',
+    'Select a State',
     metadata.states,
     state.panel1.state,
     (value) => {
       state.panel1.state = value;
       updateState();
-    }
+    },
+    true // isStateDropdown
   );
   controlsEl.appendChild(stateControl);
 
-  const categoryControl = createDropdown(
-    'Demographic Category',
-    metadata.demographic_categories,
-    state.panel1.demographic_category,
-    (value) => {
-      state.panel1.demographic_category = value;
-      // Reset group to first available
-      const groups = metadata.demographic_groups_by_category[value] || [];
-      state.panel1.demographic_group = groups[0] || '';
-      updateState();
-    }
-  );
-  controlsEl.appendChild(categoryControl);
-
-  const currentGroups = metadata.demographic_groups_by_category[state.panel1.demographic_category] || [];
+  // Filter out White and Male from demographic group options
+  const filteredDemographicGroups = metadata.all_demographic_groups.filter(g => g !== 'White' && g !== 'Male');
   const groupControl = createDropdown(
-    'Demographic Group',
-    currentGroups,
+    'Select a Demographic',
+    filteredDemographicGroups,
     state.panel1.demographic_group,
     (value) => {
       state.panel1.demographic_group = value;
@@ -49,30 +58,6 @@ export async function renderPanel1(controlsEl, vizEl, captionEl, state, metadata
   );
   controlsEl.appendChild(groupControl);
 
-  const measuresControl = createMultiSelect(
-    'Fairness Measures',
-    metadata.fairness_measures,
-    state.panel1.measures,
-    (values) => {
-      state.panel1.measures = values;
-      updateState();
-    }
-  );
-  controlsEl.appendChild(measuresControl);
-
-  const sliderControl = createYearRangeSlider(
-    metadata.minYear,
-    metadata.maxYear,
-    state.yearRange.minYear,
-    state.yearRange.maxYear,
-    (min, max) => {
-      state.yearRange.minYear = min;
-      state.yearRange.maxYear = max;
-      updateState();
-    }
-  );
-  controlsEl.appendChild(sliderControl);
-
   // Query and visualize
   if (state.panel1.measures.length === 0) {
     vizEl.innerHTML = '<div class="loading">Please select at least one fairness measure</div>';
@@ -80,14 +65,14 @@ export async function renderPanel1(controlsEl, vizEl, captionEl, state, metadata
   }
 
   const measuresStr = state.panel1.measures.map(m => `'${m}'`).join(',');
+  const dbState = metadata.statesDisplayToDb[state.panel1.state] || state.panel1.state;
   const sql = `
     SELECT year, fairness_measure, value, coalesced_n
     FROM fairness
-    WHERE state = '${state.panel1.state}'
-      AND demographic_category = '${state.panel1.demographic_category}'
+    WHERE state = '${dbState}'
       AND demographic_group = '${state.panel1.demographic_group}'
       AND fairness_measure IN (${measuresStr})
-      AND year BETWEEN ${state.yearRange.minYear} AND ${state.yearRange.maxYear}
+      AND value IS NOT NULL
     ORDER BY fairness_measure, year
   `;
 
@@ -98,33 +83,81 @@ export async function renderPanel1(controlsEl, vizEl, captionEl, state, metadata
     return;
   }
 
+  // Get selected measures in the order they appear in metadata
+  const selectedMeasuresInOrder = metadata.fairness_measures.filter(m => state.panel1.measures.includes(m));
+
+  // Determine reference group
+  const referenceGroup = getReferenceGroup(state.panel1.demographic_group);
+
+  // Determine dynamic decimal places
+  const values = data.map(d => d.value);
+  const decimals = getDynamicDecimals(values);
+
+  // Augment data with tooltip messages
+  const dataWithTooltips = data.map(d => ({
+    ...d,
+    tooltipTitle: `${d.fairness_measure}, ${d.year}`,
+    tooltipMessage: FAIRNESS_MESSAGES[d.fairness_measure]
+      ? FAIRNESS_MESSAGES[d.fairness_measure](state.panel1.state, state.panel1.demographic_group, d.value, referenceGroup).replace(/\d+\.\d+/, Math.abs(d.value).toFixed(decimals)) + ` (Sample size: ${d.coalesced_n.toLocaleString()})`
+      : `(Sample size: ${d.coalesced_n.toLocaleString()})`
+  }));
+
   const plot = Plot.plot({
     marks: [
-      Plot.line(data, {
-        x: 'year',
-        y: 'value',
-        stroke: 'fairness_measure',
-        strokeWidth: 2
-      }),
-      Plot.dot(data, {
+      Plot.line(dataWithTooltips, { x: 'year', y: 'value', stroke: 'fairness_measure', strokeWidth: 2 }),
+      Plot.dot(dataWithTooltips, {
         x: 'year',
         y: 'value',
         fill: 'fairness_measure',
-        title: d => `${d.year}\n${d.fairness_measure}\nValue: ${d.value.toFixed(2)}\nSample size: ${d.coalesced_n}`
+        r: 5,
+        tip: true,
+        title: d => `${d.tooltipTitle}\n\n${d.tooltipMessage}`
       })
     ],
-    color: { legend: true },
-    marginLeft: 60,
-    marginBottom: 40,
+    color: {
+      legend: true,
+      domain: selectedMeasuresInOrder,
+      range: selectedMeasuresInOrder.map(measure => {
+        const originalIndex = metadata.fairness_measures.indexOf(measure);
+        return MEASURE_COLORS[originalIndex % MEASURE_COLORS.length];
+      }),
+      style: { textAlign: 'center' }
+    },
+    title: `Comparing Fairness Measures for ${state.panel1.demographic_group} Applicants — ${state.panel1.state}`,
+    subtitle: `Percentage point differences compared to ${referenceGroup} applicants`,
+    width: vizEl.clientWidth,
+    height: 500,
+    marginLeft: 80,
+    marginRight: 60,
+    marginTop: 50,
+    marginBottom: 60,
+    style: { fontSize: '14px', overflow: 'visible' },
     grid: true,
-    y: { label: 'Value' },
-    x: { label: 'Year' }
+    y: { label: 'Fairness violation' },
+    x: { label: null, tickFormat: 'd' }
   });
 
   vizEl.appendChild(plot);
 
+  // Build definitions HTML for selected measures
+  const definitionsHtml = state.panel1.measures.map(measure => {
+    const definition = FAIRNESS_DEFINITIONS[measure] || 'Definition not available.';
+    return `<p style="margin-bottom: 12px;"><strong>${measure}:</strong> ${definition}</p>`;
+  }).join('');
+
+  // Get data source
+  const dataSource = getDataSources(state.panel1.measures);
+
   captionEl.innerHTML = `
-    <strong>Fairness measures over time — ${state.panel1.state}, ${state.panel1.demographic_group}</strong><br>
-    ${STANDARD_CAPTION}
+    <div style="margin-bottom: 15px;">
+      <strong>About the selected fairness measures:</strong>
+    </div>
+    ${definitionsHtml}
+    <div style="margin-top: 15px; padding-top: 12px; border-top: 1px solid #ddd; font-size: 0.85rem; color: #666;">
+      Note: All measures are depicted as differences relative to ${referenceGroup} (reference group).
+    </div>
+    <div style="margin-top: 10px; font-size: 0.85rem; color: #666; font-style: italic;">
+      ${dataSource}
+    </div>
   `;
 }
