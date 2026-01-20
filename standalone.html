@@ -362,7 +362,7 @@
 
       conn = await db.connect();
 
-      const response = await fetch('data/fairness.parquet');
+      const response = await fetch('fairness.parquet');
       if (!response.ok) {
         throw new Error(`Failed to fetch parquet file: ${response.status} ${response.statusText}`);
       }
