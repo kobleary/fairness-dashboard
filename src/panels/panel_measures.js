@@ -142,21 +142,21 @@ export async function renderPanel1(controlsEl, vizEl, captionEl, state, metadata
   // Build definitions HTML for selected measures
   const definitionsHtml = state.panel1.measures.map(measure => {
     const definition = FAIRNESS_DEFINITIONS[measure] || 'Definition not available.';
-    return `<p style="margin-bottom: 12px;"><strong>${measure}:</strong> ${definition}</p>`;
+    return `<p class="caption-definition"><strong>${measure}:</strong> ${definition}</p>`;
   }).join('');
 
   // Get data source
   const dataSource = getDataSources(state.panel1.measures);
 
   captionEl.innerHTML = `
-    <div style="margin-bottom: 15px;">
+    <div class="caption-section">
       <strong>About the selected fairness measures:</strong>
     </div>
     ${definitionsHtml}
-    <div style="margin-top: 15px; padding-top: 12px; border-top: 1px solid #ddd; font-size: 0.85rem; color: #666;">
+    <div class="caption-note">
       Note: All measures are depicted as differences relative to ${referenceGroup} (reference group).
     </div>
-    <div style="margin-top: 10px; font-size: 0.85rem; color: #666; font-style: italic;">
+    <div class="caption-source">
       ${dataSource}
     </div>
   `;

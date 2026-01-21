@@ -192,7 +192,10 @@ export async function renderPanel3(controlsEl, vizEl, captionEl, state, metadata
         .attr('stroke-width', 2);
     });
 
-  // Add state labels
+  // Get theme-aware text color for title and legend
+  const textColor = getComputedStyle(document.documentElement).getPropertyValue('--color-text').trim();
+
+  // Add state labels - always use dark text for readability on colored hexagons
   svg.append('g')
     .attr('class', 'state-labels')
     .selectAll('text')
@@ -209,7 +212,12 @@ export async function renderPanel3(controlsEl, vizEl, captionEl, state, metadata
     .attr('fill', d => {
       const stateAbbr = d.properties.iso3166_2;
       const stateData = stateValueMap[stateAbbr];
-      return stateData ? '#000000' : '#ffffff';
+      // Always use dark text on colored hexagons for contrast
+      if (stateData) {
+        return '#000000';
+      }
+      // For states without data (dark gray), use white text
+      return '#ffffff';
     })
     .attr('pointer-events', 'none')
     .text(d => d.properties.iso3166_2);
@@ -256,15 +264,21 @@ export async function renderPanel3(controlsEl, vizEl, captionEl, state, metadata
     .attr('height', legendHeight)
     .style('fill', 'url(#legend-gradient)');
 
+  const borderColor = getComputedStyle(document.documentElement).getPropertyValue('--color-border').trim();
+
   svg.append('g')
     .attr('transform', `translate(${legendX + legendWidth}, ${legendY})`)
-    .call(legendAxis);
+    .call(legendAxis)
+    .call(g => g.selectAll('text').attr('fill', textColor))
+    .call(g => g.selectAll('line').attr('stroke', borderColor))
+    .call(g => g.select('.domain').attr('stroke', borderColor));
 
   svg.append('text')
     .attr('x', legendX + legendWidth / 2)
     .attr('y', legendY - 10)
     .attr('text-anchor', 'middle')
     .attr('font-size', '12px')
+    .attr('fill', textColor)
     .text('Fairness violation');
 
   // Add title
@@ -274,6 +288,7 @@ export async function renderPanel3(controlsEl, vizEl, captionEl, state, metadata
     .attr('text-anchor', 'middle')
     .attr('font-size', '16px')
     .attr('font-weight', 'bold')
+    .attr('fill', textColor)
     .text(`${state.panel3.measure} by state — ${state.panel3.demographic_group}, ${state.panel3.year}`);
 
   vizEl.appendChild(svg.node());
@@ -285,14 +300,14 @@ export async function renderPanel3(controlsEl, vizEl, captionEl, state, metadata
   const dataSource3 = getDataSources([state.panel3.measure]);
 
   captionEl.innerHTML = `
-    <div style="margin-bottom: 15px;">
+    <div class="caption-section">
       <strong>About the selected fairness measure:</strong>
     </div>
-    <p style="margin-bottom: 12px;"><strong>${state.panel3.measure}:</strong> ${definition3}</p>
-    <div style="margin-top: 15px; padding-top: 12px; border-top: 1px solid #ddd; font-size: 0.85rem; color: #666;">
+    <p class="caption-definition"><strong>${state.panel3.measure}:</strong> ${definition3}</p>
+    <div class="caption-note">
       Note: ${state.panel3.measure === 'Representativeness' ? 'Representativeness is shown as levels.' : `All values are differences relative to ${panel3ReferenceGroup} (reference group).`}
     </div>
-    <div style="margin-top: 10px; font-size: 0.85rem; color: #666; font-style: italic;">
+    <div class="caption-source">
       ${dataSource3}
     </div>
   `;

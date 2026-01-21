@@ -48,6 +48,30 @@ const tabs = [
   { id: 'panel3', label: 'Compare States' }
 ];
 
+// Theme management
+function setupThemeToggle() {
+  const themeToggle = document.getElementById('theme-toggle');
+  const themeIcon = document.getElementById('theme-icon');
+  const html = document.documentElement;
+
+  // Get saved theme or default to system preference
+  const savedTheme = localStorage.getItem('theme');
+  const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+  const currentTheme = savedTheme || (systemPrefersDark ? 'dark' : 'light');
+
+  // Apply initial theme
+  html.setAttribute('data-theme', currentTheme);
+  themeIcon.textContent = currentTheme === 'dark' ? '☀️' : '🌙';
+
+  // Toggle theme on click
+  themeToggle.addEventListener('click', () => {
+    const newTheme = html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+    html.setAttribute('data-theme', newTheme);
+    themeIcon.textContent = newTheme === 'dark' ? '☀️' : '🌙';
+    localStorage.setItem('theme', newTheme);
+  });
+}
+
 // Initialize app
 async function init() {
   const app = document.getElementById('app');
@@ -154,6 +178,9 @@ async function init() {
     // Rebuild UI
     app.innerHTML = `
       <header>
+        <button id="theme-toggle" class="theme-toggle" aria-label="Toggle theme">
+          <span id="theme-icon">🌙</span>
+        </button>
         <h1>Mortgage Market Fairness</h1>
         <div class="description">
           Based on a <a href="https://www.philadelphiafed.org/-/media/FRBP/Assets/working-papers/2025/wp25-04.pdf" target="_blank" rel="noopener noreferrer">working paper</a> by Hadi Elzayn, Simon Freyaldenhoven, Ryan Kobler, and Minchul Shin.
@@ -168,6 +195,9 @@ async function init() {
         <div id="caption"></div>
       </main>
     `;
+
+    // Setup theme toggle
+    setupThemeToggle();
 
     // Render tabs
     const tabsContainer = document.getElementById('tabs');

@@ -27,17 +27,30 @@
 
 /* Dark Mode */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     --color-accent: #c8d5ca;
     --color-accent-light: #acbdb0;
     --color-background: #12160f;
     --color-background-second: #1d231e;
-    --color-background-mute: #242b26;
+    --color-background-mute: #2d342f;
     --color-background-code: #1a201b;
-    --color-text: #e8ede9;
-    --color-text-secondary: #9ba39e;
+    --color-text: #f2f6f3;
+    --color-text-secondary: #b5bdb9;
     --base-shadow: 0 0.625rem 2.125rem 0 rgba(0, 0, 0, 0.5);
   }
+}
+
+/* Explicit dark theme override */
+:root[data-theme="dark"] {
+  --color-accent: #c8d5ca;
+  --color-accent-light: #acbdb0;
+  --color-background: #12160f;
+  --color-background-second: #1d231e;
+  --color-background-mute: #2d342f;
+  --color-background-code: #1a201b;
+  --color-text: #f2f6f3;
+  --color-text-secondary: #b5bdb9;
+  --base-shadow: 0 0.625rem 2.125rem 0 rgba(0, 0, 0, 0.5);
 }
 
 *,
@@ -73,6 +86,34 @@ header {
   margin-bottom: 30px;
   border-bottom: 1px solid var(--color-border);
   padding-bottom: 20px;
+  position: relative;
+}
+
+.theme-toggle {
+  position: absolute;
+  top: 0;
+  right: 0;
+  padding: 10px 16px;
+  background: var(--color-background-second);
+  border: 1px solid var(--color-border);
+  border-radius: var(--rounded-sm);
+  cursor: pointer;
+  font-size: 1.2rem;
+  transition: all var(--transition) ease;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.theme-toggle:hover {
+  background: var(--color-background-mute);
+  transform: translateY(-1px);
+}
+
+.theme-toggle:active {
+  transform: scale(0.95);
 }
 
 h1 {
@@ -205,6 +246,29 @@ main {
   font-size: 0.9rem;
   color: var(--color-text-secondary);
   line-height: 1.6;
+}
+
+#caption .caption-section {
+  margin-bottom: 15px;
+}
+
+#caption .caption-definition {
+  margin-bottom: 12px;
+}
+
+#caption .caption-note {
+  margin-top: 15px;
+  padding-top: 12px;
+  border-top: 1px solid var(--color-border);
+  font-size: 0.85rem;
+  color: var(--color-text-secondary);
+}
+
+#caption .caption-source {
+  margin-top: 10px;
+  font-size: 0.85rem;
+  color: var(--color-text-secondary);
+  font-style: italic;
 }
 
 /* Controls */
@@ -508,8 +572,54 @@ html {
   accent-color: var(--color-accent);
 }
 
+/* Observable Plot SVG text colors (exclude state labels) */
+#visualization svg text:not(.state-labels *) {
+  fill: var(--color-text) !important;
+}
+
+#visualization svg .tick text {
+  fill: var(--color-text) !important;
+}
+
+#visualization svg line {
+  stroke: var(--color-border) !important;
+}
+
+#visualization svg .domain {
+  stroke: var(--color-text) !important;
+}
+
+/* Grid lines */
+#visualization svg line[stroke="currentColor"] {
+  stroke: var(--color-border) !important;
+  opacity: 0.3;
+}
+
+/* Don't override data lines */
+#visualization svg path[fill="none"] {
+  stroke-opacity: 1;
+}
+
+/* Observable Plot tooltips - theme-aware styling */
+[aria-label^="tip"],
+[aria-label*="tip"],
+div[style*="pointer-events: none"][style*="position: absolute"] {
+  background: var(--color-background-second) !important;
+  color: var(--color-text) !important;
+  fill: var(--color-background-second) !important;
+  border: 1px solid var(--color-border) !important;
+  border-radius: var(--rounded-xs) !important;
+  stroke: var(--color-border) !important;
+  stroke-width: 1px !important;
+  box-shadow: var(--base-shadow) !important;
+  padding: 8px 12px !important;
+  font-weight: 500 !important;
+}
+
+
 /* Center Observable Plot titles */
 #visualization svg > text[aria-label="title"],
 #visualization svg > text:first-of-type {
   text-anchor: middle !important;
+  fill: var(--color-text) !important;
 }

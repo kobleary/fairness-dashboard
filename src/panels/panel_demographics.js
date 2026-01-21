@@ -136,14 +136,14 @@ export async function renderPanel2(controlsEl, vizEl, captionEl, state, metadata
   const dataSource2 = getDataSources([state.panel2.measure]);
 
   captionEl.innerHTML = `
-    <div style="margin-bottom: 15px;">
+    <div class="caption-section">
       <strong>About the selected fairness measure:</strong>
     </div>
-    <p style="margin-bottom: 12px;"><strong>${state.panel2.measure}:</strong> ${definition}</p>
-    <div style="margin-top: 15px; padding-top: 12px; border-top: 1px solid #ddd; font-size: 0.85rem; color: #666;">
+    <p class="caption-definition"><strong>${state.panel2.measure}:</strong> ${definition}</p>
+    <div class="caption-note">
       Note: ${state.panel2.measure === 'Representativeness' ? 'Representativeness is shown as levels.' : `All values are differences relative to ${panel2ReferenceGroup} (reference group).`}
     </div>
-    <div style="margin-top: 10px; font-size: 0.85rem; color: #666; font-style: italic;">
+    <div class="caption-source">
       ${dataSource2}
     </div>
   `;
